@@ -10,6 +10,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import math
+import sys
+import os
+
+# Add production directory to path for color config import
+sys.path.insert(0, os.path.dirname(__file__))
+from kml_colors_config import get_airspace_color, get_line_color, LINE_WIDTH
 
 
 class KMLVolumeService:
@@ -132,7 +138,8 @@ class KMLVolumeService:
 
     def _create_kml_polygon(self, coordinates: List[Tuple[float, float]], 
                            min_altitude_m: Optional[float], max_altitude_m: Optional[float],
-                           name: str, description: str) -> ET.Element:
+                           name: str, description: str, 
+                           airspace_type: str = None, airspace_class: str = None) -> ET.Element:
         """Create a KML polygon element with altitude extrusion"""
         
         # Create Placemark
@@ -181,12 +188,15 @@ class KMLVolumeService:
         
         coord_elem.text = ' '.join(coord_text)
         
-        # Add style for visualization
+        # Add style for visualization using color configuration
+        fill_color = get_airspace_color(airspace_type, airspace_class)
+        line_color = get_line_color(fill_color)
+        
         style = ET.SubElement(placemark, 'Style')
         poly_style = ET.SubElement(style, 'PolyStyle')
         
         color_elem = ET.SubElement(poly_style, 'color')
-        color_elem.text = '7f0000ff'  # Semi-transparent red
+        color_elem.text = fill_color
         
         fill_elem = ET.SubElement(poly_style, 'fill')
         fill_elem.text = '1'
@@ -195,10 +205,10 @@ class KMLVolumeService:
         outline_elem.text = '1'
         
         line_style = ET.SubElement(style, 'LineStyle')
-        line_color = ET.SubElement(line_style, 'color')
-        line_color.text = 'ff0000ff'  # Red outline
-        line_width = ET.SubElement(line_style, 'width')
-        line_width.text = '2'
+        line_color_elem = ET.SubElement(line_style, 'color')
+        line_color_elem.text = line_color
+        line_width_elem = ET.SubElement(line_style, 'width')
+        line_width_elem.text = str(LINE_WIDTH)
         
         return placemark
 
@@ -270,7 +280,9 @@ Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitud
                     min_altitude_m, 
                     max_altitude_m,
                     f"{airspace.get('name', 'Unknown')} - Circle {i+1}",
-                    description
+                    description,
+                    airspace.get('code_type'),
+                    airspace.get('airspace_class')
                 )
                 
                 document.append(placemark)
@@ -294,7 +306,9 @@ Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitud
                     min_altitude_m, 
                     max_altitude_m,
                     f"{airspace.get('name', 'Unknown')} - Volume {i+1}",
-                    description
+                    description,
+                    airspace.get('code_type'),
+                    airspace.get('airspace_class')
                 )
                 
                 document.append(placemark)
