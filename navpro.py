@@ -330,7 +330,7 @@ def cmd_list_profile(args):
         print(f"❌ Error: KML file not found: {kml_file}")
         return
     
-    print(f"🛩️ Analyzing flight path: {os.path.basename(kml_file)}")
+    print(f">> Analyzing flight path: {os.path.basename(kml_file)}")
     print(f"   Corridor: ±{args.corridor_height} ft, ±{args.corridor_width} NM")
     print()
     
@@ -432,7 +432,7 @@ def cmd_generate(args, kml_service):
         return
     
     # Original generate functionality continues here...
-    print("🛩️ Standard KML generation not yet updated in this version")
+    print(">> Standard KML generation not yet updated in this version")
     print("   Use the --profile option for flight path based generation")
 
 
@@ -449,7 +449,7 @@ def cmd_generate_profile(args):
         print(f"❌ Error: KML file not found: {kml_file}")
         return
     
-    print(f"🛩️ Analyzing flight path for KML generation: {os.path.basename(kml_file)}")
+    print(f">> Analyzing flight path for KML generation: {os.path.basename(kml_file)}")
     print(f"   Corridor: ±{args.corridor_height} ft, ±{args.corridor_width} NM")
     print()
     
@@ -498,10 +498,10 @@ def cmd_generate_profile(args):
         unique_ids = list(dict.fromkeys(airspace_ids))  # Preserve order, remove duplicates
         
         if filter_types:
-            print(f"✅ Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (filtered out {filtered_count} {'/'.join(filter_types)} zones)")
+            print(f">> Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (filtered out {filtered_count} {'/'.join(filter_types)} zones)")
         else:
-            print(f"✅ Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (no filtering applied)")
-        print(f"🎯 Generating KML volumes for crossed airspaces...")
+            print(f">> Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (no filtering applied)")
+        print(f">> Generating organized KML profile...")
         print()
         
         # Initialize KML service for generation
@@ -509,93 +509,58 @@ def cmd_generate_profile(args):
         
         generated_files = []
         
-        # Generate individual KML files for each crossed airspace
-        for i, airspace_id in enumerate(unique_ids, 1):
-            try:
-                # Find corresponding crossing info from filtered crossings
-                crossing = next(c for c in filtered_crossings if c['airspace']['id'] == airspace_id)
-                airspace = crossing['airspace']
-                
-                print(f"   [{i:2d}/{len(unique_ids)}] Generating {airspace['name']}...")
-                
-                # Generate filename
-                safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in airspace['name'])
-                output_filename = f"flight_profile_{safe_name}_{airspace_id}.kml"
-                output_path = output_dir / output_filename
-                
-                # Generate KML
-                try:
-                    kml_service_gen.save_airspace_kml(airspace_id, str(output_path))
-                    success = True
-                    generated_files.append({
-                        'file': str(output_path),
-                        'airspace': airspace,
-                        'distance': crossing['distance_km']
-                    })
-                    if args.verbose:
-                        print(f"      ✅ {output_filename} (crossed at {crossing['distance_km']:.1f} km)")
-                except Exception as e:
-                    success = False
-                    print(f"      ❌ Error: {e}")
-                
-            except Exception as e:
-                print(f"      ❌ Error generating {airspace['name']}: {e}")
-                continue
+        # Skip individual file generation - only create combined KML with organized folders
         
-        # Generate combined KML if requested or by default
-        if not args.individual or len(unique_ids) > 1:
-            try:
-                flight_name = os.path.splitext(os.path.basename(kml_file))[0]
-                combined_filename = f"flight_profile_{flight_name}_combined.kml"
-                combined_path = output_dir / combined_filename
-                
-                print(f"   📦 Generating combined KML: {combined_filename}...")
-                
-                # Parse flight coordinates for inclusion in combined KML
-                from core.spatial_query import KMLFlightPathParser
-                flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
-                
-                # Use generate_multiple_airspaces_kml method with flight path info
-                kml_content = kml_service_gen.generate_multiple_airspaces_kml(
-                    unique_ids, 
-                    flight_name=flight_name,
-                    flight_coordinates=flight_coordinates if flight_coordinates else None
-                )
-                
-                # Write to file
-                with open(combined_path, 'w', encoding='utf-8') as f:
-                    f.write(kml_content)
-                
-                generated_files.append({
-                    'file': str(combined_path),
-                    'type': 'combined',
-                    'count': len(unique_ids)
-                })
-                print(f"      ✅ Combined KML saved")
+        # Generate combined KML with organized folders
+        try:
+            flight_name = os.path.splitext(os.path.basename(kml_file))[0]
+            combined_filename = f"flight_profile_{flight_name}_combined.kml"
+            combined_path = output_dir / combined_filename
             
-            except Exception as e:
-                print(f"      ❌ Error generating combined KML: {e}")
+            print(f"   >> Generating organized profile KML: {combined_filename}...")
+            print(f"      >> Organizing airspaces into KML folders by type")
+            
+            # Parse flight coordinates for inclusion in combined KML
+            from core.spatial_query import KMLFlightPathParser
+            flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
+            
+            # Use generate_multiple_airspaces_kml method with flight path info
+            # This now organizes airspaces by type into KML folders
+            kml_content = kml_service_gen.generate_multiple_airspaces_kml(
+                unique_ids, 
+                flight_name=flight_name,
+                flight_coordinates=flight_coordinates if flight_coordinates else None
+            )
+            
+            # Write to file
+            with open(combined_path, 'w', encoding='utf-8') as f:
+                f.write(kml_content)
+            
+            generated_files.append({
+                'file': str(combined_path),
+                'type': 'combined',
+                'count': len(unique_ids)
+            })
+            print(f"      >> Organized profile KML saved")
+        
+        except Exception as e:
+            print(f"      >> Error generating organized KML: {e}")
         
         # Summary
         print()
         print("=" * 60)
-        print(f"🎉 KML generation complete!")
-        print(f"   Generated: {len([f for f in generated_files if 'type' not in f])} individual files")
-        if any('type' in f for f in generated_files):
-            print(f"   Combined: 1 file with {len(unique_ids)} airspaces")
+        print(f">> KML generation complete!")
+        print(f"   Profile: 1 organized KML file with {len(unique_ids)} airspaces")
+        print(f"   Organization: Airspaces grouped by type in Google Earth folders")
         print(f"   Output directory: {output_dir}")
         
         if args.verbose and generated_files:
-            print("\n📁 Generated files:")
+            print(f"\n>> Generated file:")
             for file_info in generated_files:
-                if 'type' in file_info:
-                    print(f"   📦 {os.path.basename(file_info['file'])} (combined)")
-                else:
-                    airspace = file_info['airspace'] 
-                    print(f"   🎯 {os.path.basename(file_info['file'])} - {airspace['name']}")
+                print(f"   >> {os.path.basename(file_info['file'])} (organized profile)")
         
     except Exception as e:
-        print(f"❌ Error during flight analysis: {e}")
+        print(f">> Error during flight analysis: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()

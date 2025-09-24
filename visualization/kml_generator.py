@@ -416,7 +416,7 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         return ET.tostring(kml, encoding='unicode')
 
     def generate_multiple_airspaces_kml(self, airspace_ids: List[int], flight_name: str = None, flight_coordinates: List[tuple] = None) -> str:
-        """Generate KML for multiple airspaces with optional flight path
+        """Generate KML for multiple airspaces organized by type into folders
         
         Args:
             airspace_ids: List of airspace IDs to include
@@ -434,23 +434,73 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         else:
             doc_name.text = f"Multiple Airspaces ({len(airspace_ids)} airspaces)"
         
-        # Generate KML for each airspace and merge
-        for airspace_id in airspace_ids:
-            try:
-                single_kml_str = self.generate_airspace_kml(airspace_id)
-                single_kml = ET.fromstring(single_kml_str)
-                
-                # Extract placemarks from single KML
-                single_doc = single_kml.find('.//{http://www.opengis.net/kml/2.2}Document')
-                if single_doc is not None:
-                    for placemark in single_doc.findall('.//{http://www.opengis.net/kml/2.2}Placemark'):
-                        document.append(placemark)
-                        
-            except Exception as e:
-                print(f"Warning: Failed to generate KML for airspace {airspace_id}: {e}")
-                continue
+        # Group airspaces by type
+        airspaces_by_type = {}
         
-        # Add flight path if coordinates are provided
+        # Get airspace details to group by type
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        
+        for airspace_id in airspace_ids:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM airspaces WHERE id = ?", (airspace_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                airspace_type = row['code_type'].upper() if row['code_type'] else 'OTHER'
+                if airspace_type not in airspaces_by_type:
+                    airspaces_by_type[airspace_type] = []
+                airspaces_by_type[airspace_type].append({
+                    'id': airspace_id,
+                    'name': row['name'] if row['name'] else 'Unknown',
+                    'type': airspace_type,
+                    'class': row['airspace_class'] if row['airspace_class'] else 'UNKNOWN'
+                })
+        
+        conn.close()
+        
+        # Create KML folders for each airspace type
+        type_order = ['CTR', 'TMA', 'RAS', 'R', 'D', 'P', 'SECTOR', 'FIR', 'OTHER']
+        
+        for airspace_type in type_order:
+            if airspace_type not in airspaces_by_type:
+                continue
+                
+            airspaces = airspaces_by_type[airspace_type]
+            
+            # Create folder for this type
+            folder = ET.SubElement(document, 'Folder')
+            
+            # Folder name with emoji and count
+            folder_name = ET.SubElement(folder, 'name')
+            type_emoji = {
+                'CTR': '🏢', 'TMA': '🛬', 'RAS': '📡', 'R': '⛔', 
+                'D': '🚫', 'P': '🔒', 'SECTOR': '📶', 'FIR': '🌍', 'OTHER': '❓'
+            }
+            emoji = type_emoji.get(airspace_type, '❓')
+            folder_name.text = f"{emoji} {airspace_type} ({len(airspaces)} airspaces)"
+            
+            # Folder description
+            folder_desc = ET.SubElement(folder, 'description')
+            folder_desc.text = f"{airspace_type} airspaces encountered along flight path"
+            
+            # Add each airspace to this folder
+            for airspace in airspaces:
+                try:
+                    single_kml_str = self.generate_airspace_kml(airspace['id'])
+                    single_kml = ET.fromstring(single_kml_str)
+                    
+                    # Extract placemarks from single KML
+                    single_doc = single_kml.find('.//{http://www.opengis.net/kml/2.2}Document')
+                    if single_doc is not None:
+                        for placemark in single_doc.findall('.//{http://www.opengis.net/kml/2.2}Placemark'):
+                            folder.append(placemark)
+                            
+                except Exception as e:
+                    print(f"Warning: Failed to generate KML for airspace {airspace['id']} ({airspace['name']}): {e}")
+                    continue
+        
+        # Add flight path at the top level if coordinates are provided
         if flight_coordinates:
             self._add_flight_path_to_kml(document, flight_coordinates, flight_name or "Flight Path")
         
