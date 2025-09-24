@@ -13,15 +13,18 @@ KML_COLORS = {
     'default': '40808080',  # 25% transparent grey
     
     # Red colors for Class A airspaces and restricted zones
-    'class_A': '40ff0000',  # 25% transparent red
-    'R': '40ff0000',        # Restricted areas - red
-    'P': '40ff0000',        # Prohibited areas - red
+    'class_A': '400000ff',  # 25% transparent red
+    'R': '400000ff',        # Restricted areas - red
+    'P': '400000ff',        # Prohibited areas - red
     
-    # Blue colors for Class D airspaces
-    'D': '400000ff',        # Class D airspace - blue
-    'D-OTHER': '400000ff',  # Class D other - blue
+    # Blue colors for Class D airspaces (AABBGGRR: AA=40, BB=ff, GG=00, RR=00)
+    'D': '40ff0000',        # Class D airspace - blue
+    'D-OTHER': '40ff0000',  # Class D other - blue
     
-    # Green colors for RAS airspaces
+    # Magenta/Purple colors for Class E airspaces (AABBGGRR: AA=40, BB=ff, GG=00, RR=ff)
+    'E': '40ff00ff',        # Class E airspace - magenta
+    
+    # Green colors for RAS airspaces (AABBGGRR: AA=40, BB=00, GG=ff, RR=00)
     'RAS': '4000ff00',      # RAS airspace - green
     
     # You can add more specific colors here as needed
@@ -55,11 +58,19 @@ def get_airspace_color(airspace_type: str = None, airspace_class: str = None) ->
     if airspace_class and airspace_class.upper() == 'A':
         return KML_COLORS['class_A']
     
-    # Priority 2: Check for specific airspace types
+    # Priority 2: Check for class D airspaces (should be blue)
+    if airspace_class and airspace_class.upper() == 'D':
+        return KML_COLORS['D']
+    
+    # Priority 3: Check for class E airspaces (should be magenta)
+    if airspace_class and airspace_class.upper() == 'E':
+        return KML_COLORS['E']
+    
+    # Priority 4: Check for specific airspace types
     if airspace_type and airspace_type.upper() in KML_COLORS:
         return KML_COLORS[airspace_type.upper()]
     
-    # Priority 3: Default grey color
+    # Priority 5: Default grey color
     return KML_COLORS['default']
 
 def get_line_color(fill_color: str) -> str:

@@ -162,6 +162,38 @@ class AIXMExtractor:
             logger.error(f"Erreur lors de l'extraction AseUid: {e}")
             return None
     
+    def extract_altitude_info(self, ase_element) -> Dict[str, Optional[str]]:
+        """Extrait les informations d'altitude d'un élément Ase"""
+        altitude_info = {
+            'min_altitude': None,
+            'max_altitude': None,
+            'min_altitude_unit': None,
+            'max_altitude_unit': None
+        }
+        
+        try:
+            # Extract upper limit (maximum altitude)
+            upper_val_elem = ase_element.find('valDistVerUpper')
+            upper_uom_elem = ase_element.find('uomDistVerUpper')
+            if upper_val_elem is not None and upper_val_elem.text:
+                altitude_info['max_altitude'] = upper_val_elem.text.strip()
+                if upper_uom_elem is not None and upper_uom_elem.text:
+                    altitude_info['max_altitude_unit'] = upper_uom_elem.text.strip()
+            
+            # Extract lower limit (minimum altitude) 
+            lower_val_elem = ase_element.find('valDistVerLower')
+            lower_uom_elem = ase_element.find('uomDistVerLower')
+            if lower_val_elem is not None and lower_val_elem.text:
+                altitude_info['min_altitude'] = lower_val_elem.text.strip()
+                if lower_uom_elem is not None and lower_uom_elem.text:
+                    altitude_info['min_altitude_unit'] = lower_uom_elem.text.strip()
+            
+            return altitude_info
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'extraction des altitudes: {e}")
+            return altitude_info
+    
     def process_airspaces_pass1(self, conn: sqlite3.Connection):
         """Première passe : extraire tous les espaces aériens"""
         logger.info("=== PASSE 1: EXTRACTION DES ESPACES AÉRIENS ===")
@@ -171,8 +203,17 @@ class AIXMExtractor:
                 self.ase_elements_found += 1
                 
                 uid_data = self.extract_airspace_uid(elem)
+                altitude_data = self.extract_altitude_info(elem)
                 
                 if uid_data and 'code_id' in uid_data:
+                    # Extract airspace name from txtName element
+                    name_elem = elem.find('txtName')
+                    airspace_name = name_elem.text.strip() if name_elem is not None and name_elem.text else uid_data.get('code_id')
+                    
+                    # Extract airspace class from codeClass element
+                    class_elem = elem.find('codeClass')
+                    airspace_class = class_elem.text.strip() if class_elem is not None and class_elem.text else 'UNKNOWN'
+                    
                     cursor = conn.cursor()
                     cursor.execute("""
                         INSERT INTO airspaces (
@@ -182,11 +223,27 @@ class AIXMExtractor:
                         uid_data.get('code_id'),
                         uid_data.get('code_type'),
                         uid_data.get('mid'),
-                        uid_data.get('code_id'),
-                        'UNKNOWN'
+                        airspace_name,
+                        airspace_class
                     ))
                     
                     airspace_id = cursor.lastrowid
+                    
+                    # Insert altitude information into vertical_limits table
+                    if altitude_data.get('min_altitude') or altitude_data.get('max_altitude'):
+                        cursor.execute("""
+                            INSERT INTO vertical_limits (
+                                airspace_id, lower_limit_ft, upper_limit_ft, 
+                                lower_limit_ref, upper_limit_ref, unit_of_measure
+                            ) VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            airspace_id,
+                            altitude_data.get('min_altitude'),
+                            altitude_data.get('max_altitude'),
+                            altitude_data.get('min_altitude_unit', 'FT'),
+                            altitude_data.get('max_altitude_unit', 'FT'),
+                            'FT'
+                        ))
                     self.airspace_count += 1
                     self.valid_airspaces += 1
                     

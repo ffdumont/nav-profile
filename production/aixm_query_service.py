@@ -87,11 +87,15 @@ class AirspaceQueryService:
         cursor.execute("PRAGMA table_info(airspaces)")
         columns = [col[1] for col in cursor.fetchall()]
         
-        # Build the main query
+        # Build the main query with altitude information from vertical_limits table
         query = f"""
-        SELECT * FROM airspaces 
+        SELECT a.*, 
+               vl.lower_limit_ft, vl.upper_limit_ft, 
+               vl.lower_limit_ref, vl.upper_limit_ref, vl.unit_of_measure
+        FROM airspaces a
+        LEFT JOIN vertical_limits vl ON a.id = vl.airspace_id
         {where_clause}
-        ORDER BY name
+        ORDER BY a.name
         """
         
         if limit:
@@ -130,18 +134,19 @@ class AirspaceQueryService:
                 airspace_data['border_count'] = 0
                 airspace_data['vertex_count'] = 0
             
-            # Format altitude information for display
-            min_alt = airspace_data.get('min_altitude')
-            max_alt = airspace_data.get('max_altitude')
-            min_unit = airspace_data.get('min_altitude_unit', '')
-            max_unit = airspace_data.get('max_altitude_unit', '')
+            # Format altitude information for display using vertical_limits data
+            min_alt = airspace_data.get('lower_limit_ft')
+            max_alt = airspace_data.get('upper_limit_ft')
+            min_unit = airspace_data.get('lower_limit_ref', '')
+            max_unit = airspace_data.get('upper_limit_ref', '')
+            unit_measure = airspace_data.get('unit_of_measure', 'FT')
             
             if min_alt is not None and max_alt is not None:
-                airspace_data['altitude_display'] = f"{min_alt}-{max_alt} {max_unit}"
+                airspace_data['altitude_display'] = f"{min_alt}-{max_alt} {unit_measure}"
             elif min_alt is not None:
-                airspace_data['altitude_display'] = f"{min_alt}+ {min_unit}"
+                airspace_data['altitude_display'] = f"{min_alt}+ {unit_measure}"
             elif max_alt is not None:
-                airspace_data['altitude_display'] = f"0-{max_alt} {max_unit}"
+                airspace_data['altitude_display'] = f"0-{max_alt} {unit_measure}"
             else:
                 airspace_data['altitude_display'] = "No altitude limits"
             

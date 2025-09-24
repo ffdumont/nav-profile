@@ -214,12 +214,19 @@ class KMLVolumeService:
 
     def generate_airspace_kml(self, airspace_id: int) -> str:
         """Generate KML for a specific airspace"""
-        # Get airspace details
+        # Get airspace details with altitude information
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM airspaces WHERE id = ?", (airspace_id,))
+        cursor.execute("""
+            SELECT a.*, 
+                   vl.lower_limit_ft, vl.upper_limit_ft, 
+                   vl.lower_limit_ref, vl.upper_limit_ref, vl.unit_of_measure
+            FROM airspaces a
+            LEFT JOIN vertical_limits vl ON a.id = vl.airspace_id
+            WHERE a.id = ?
+        """, (airspace_id,))
         airspace_row = cursor.fetchone()
         
         if not airspace_row:
@@ -230,12 +237,12 @@ class KMLVolumeService:
         
         # Convert altitudes to meters
         min_altitude_m = self._convert_altitude_to_meters(
-            airspace.get('min_altitude'), 
-            airspace.get('min_altitude_unit')
+            airspace.get('lower_limit_ft'), 
+            airspace.get('lower_limit_ref')
         )
         max_altitude_m = self._convert_altitude_to_meters(
-            airspace.get('max_altitude'), 
-            airspace.get('max_altitude_unit')
+            airspace.get('upper_limit_ft'), 
+            airspace.get('upper_limit_ref')
         )
         
         # Get geometry
@@ -257,8 +264,8 @@ class KMLVolumeService:
         Airspace Volume: {airspace.get('name', 'Unknown')}
         Class: {airspace.get('airspace_class', 'Unknown')}
         Type: {airspace.get('code_type', 'Unknown')}
-        Min Altitude: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitude_unit', '')}
-        Max Altitude: {airspace.get('max_altitude', 'N/A')} {airspace.get('max_altitude_unit', '')}
+        Min Altitude: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')}
+        Max Altitude: {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
         """
         
         # Process each geometry component
@@ -272,14 +279,22 @@ class KMLVolumeService:
                 
                 # Create description with altitude info
                 description = f"""Circular boundary with radius {geom['radius_km']} km
-3D Volume: Surface to {airspace.get('max_altitude', 'N/A')} {airspace.get('max_altitude_unit', '')}
-Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitude_unit', '')} - {airspace.get('max_altitude', 'N/A')} {airspace.get('max_altitude_unit', '')} AMSL"""
+3D Volume: Surface to {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
+Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')} - {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')} AMSL"""
+                
+                # Create name with type and class info
+                name_parts = [airspace.get('name', 'Unknown')]
+                if airspace.get('code_type'):
+                    name_parts.append(f"({airspace.get('code_type')})")
+                if airspace.get('airspace_class') and airspace.get('airspace_class') != 'UNKNOWN':
+                    name_parts.append(f"Class {airspace.get('airspace_class')}")
+                placemark_name = " ".join(name_parts)
                 
                 placemark = self._create_kml_polygon(
                     coordinates, 
                     min_altitude_m, 
                     max_altitude_m,
-                    f"{airspace.get('name', 'Unknown')} - Circle {i+1}",
+                    placemark_name,
                     description,
                     airspace.get('code_type'),
                     airspace.get('airspace_class')
@@ -298,14 +313,22 @@ Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitud
                 
                 # Create description with altitude info
                 description = f"""Polygon boundary with {len(coordinates)-1} vertices
-3D Volume: Surface to {airspace.get('max_altitude', 'N/A')} {airspace.get('max_altitude_unit', '')}
-Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitude_unit', '')} - {airspace.get('max_altitude', 'N/A')} {airspace.get('max_altitude_unit', '')} AMSL"""
+3D Volume: Surface to {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
+Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')} - {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')} AMSL"""
+                
+                # Create name with type and class info
+                name_parts = [airspace.get('name', 'Unknown')]
+                if airspace.get('code_type'):
+                    name_parts.append(f"({airspace.get('code_type')})")
+                if airspace.get('airspace_class') and airspace.get('airspace_class') != 'UNKNOWN':
+                    name_parts.append(f"Class {airspace.get('airspace_class')}")
+                placemark_name = " ".join(name_parts)
                 
                 placemark = self._create_kml_polygon(
                     coordinates, 
                     min_altitude_m, 
                     max_altitude_m,
-                    f"{airspace.get('name', 'Unknown')} - Volume {i+1}",
+                    placemark_name,
                     description,
                     airspace.get('code_type'),
                     airspace.get('airspace_class')
@@ -363,7 +386,34 @@ Altitude range: {airspace.get('min_altitude', 'N/A')} {airspace.get('min_altitud
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM airspaces WHERE name LIKE ?", (f'%{name_pattern}%',))
+        # Prioritize airspaces with known classes over UNKNOWN classes
+        # This helps avoid duplicates where same airspace exists with and without class info
+        cursor.execute("""
+            SELECT a.*, 
+                   vl.lower_limit_ft, vl.upper_limit_ft, 
+                   vl.lower_limit_ref, vl.upper_limit_ref, vl.unit_of_measure
+            FROM airspaces a
+            LEFT JOIN vertical_limits vl ON a.id = vl.airspace_id
+            WHERE a.name LIKE ? 
+            ORDER BY 
+                CASE WHEN a.airspace_class = 'UNKNOWN' OR a.airspace_class IS NULL THEN 1 ELSE 0 END,
+                a.name, vl.lower_limit_ft, vl.upper_limit_ft
+        """, (f'%{name_pattern}%',))
+        
         results = [dict(row) for row in cursor.fetchall()]
+        
+        # Remove duplicates: if we have same name+type with different classes, 
+        # keep only the one with known class
+        filtered_results = []
+        seen_combinations = set()
+        
+        for result in results:
+            key = (result.get('name'), result.get('code_type'), 
+                   result.get('lower_limit_ft'), result.get('upper_limit_ft'))
+            
+            if key not in seen_combinations:
+                filtered_results.append(result)
+                seen_combinations.add(key)
+        
         conn.close()
-        return results
+        return filtered_results
