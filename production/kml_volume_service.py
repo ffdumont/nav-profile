@@ -153,40 +153,70 @@ class KMLVolumeService:
         desc_elem = ET.SubElement(placemark, 'description')
         desc_elem.text = description
         
-        # Create Polygon
-        polygon = ET.SubElement(placemark, 'Polygon')
-        
-        # Set altitude mode and extrusion
-        altitude_mode = ET.SubElement(polygon, 'altitudeMode')
-        altitude_mode.text = 'absolute'
-        
-        # Enable extrusion if we have a maximum altitude
-        if max_altitude_m is not None and max_altitude_m > 0:
-            extrude = ET.SubElement(polygon, 'extrude')
-            extrude.text = '1'
-        
-        # Create outer boundary
-        outer_boundary = ET.SubElement(polygon, 'outerBoundaryIs')
-        linear_ring = ET.SubElement(outer_boundary, 'LinearRing')
-        
-        # Add coordinates - use max altitude for extrusion, or min altitude if no max
-        coord_elem = ET.SubElement(linear_ring, 'coordinates')
-        coord_text = []
-        
-        # Determine the altitude to use for coordinates
-        # For extruded volumes: set coordinates to max altitude, extrusion goes from 0 to max
-        # For non-extruded surfaces: set coordinates to min altitude or 0
-        if max_altitude_m is not None and max_altitude_m > 0:
-            coordinate_altitude = max_altitude_m
-        elif min_altitude_m is not None:
-            coordinate_altitude = min_altitude_m
+        # Create Polygon or MultiGeometry for proper 3D volume representation
+        if (min_altitude_m is not None and min_altitude_m > 0 and 
+            max_altitude_m is not None and max_altitude_m > min_altitude_m):
+            # Create MultiGeometry with top and bottom surfaces for elevated airspace
+            multigeometry = ET.SubElement(placemark, 'MultiGeometry')
+            
+            # Top surface at max altitude
+            top_polygon = ET.SubElement(multigeometry, 'Polygon')
+            top_altitude_mode = ET.SubElement(top_polygon, 'altitudeMode')
+            top_altitude_mode.text = 'absolute'
+            top_outer_boundary = ET.SubElement(top_polygon, 'outerBoundaryIs')
+            top_linear_ring = ET.SubElement(top_outer_boundary, 'LinearRing')
+            top_coord_elem = ET.SubElement(top_linear_ring, 'coordinates')
+            top_coord_text = []
+            for lat, lon in coordinates:
+                top_coord_text.append(f"{lon},{lat},{max_altitude_m}")
+            top_coord_elem.text = ' '.join(top_coord_text)
+            
+            # Bottom surface at min altitude  
+            bottom_polygon = ET.SubElement(multigeometry, 'Polygon')
+            bottom_altitude_mode = ET.SubElement(bottom_polygon, 'altitudeMode')
+            bottom_altitude_mode.text = 'absolute'
+            bottom_outer_boundary = ET.SubElement(bottom_polygon, 'outerBoundaryIs')
+            bottom_linear_ring = ET.SubElement(bottom_outer_boundary, 'LinearRing')
+            bottom_coord_elem = ET.SubElement(bottom_linear_ring, 'coordinates')
+            bottom_coord_text = []
+            # Reverse coordinate order for bottom surface (proper winding)
+            for lat, lon in reversed(coordinates):
+                bottom_coord_text.append(f"{lon},{lat},{min_altitude_m}")
+            bottom_coord_elem.text = ' '.join(bottom_coord_text)
+            
         else:
-            coordinate_altitude = 0.0
-        
-        for lat, lon in coordinates:
-            coord_text.append(f"{lon},{lat},{coordinate_altitude}")
-        
-        coord_elem.text = ' '.join(coord_text)
+            # Use traditional extrusion for ground-based or single-altitude airspaces
+            polygon = ET.SubElement(placemark, 'Polygon')
+            
+            # Set altitude mode and extrusion
+            altitude_mode = ET.SubElement(polygon, 'altitudeMode')
+            altitude_mode.text = 'absolute'
+            
+            # Enable extrusion if we have a maximum altitude
+            if max_altitude_m is not None and max_altitude_m > 0:
+                extrude = ET.SubElement(polygon, 'extrude')
+                extrude.text = '1'
+            
+            # Create outer boundary
+            outer_boundary = ET.SubElement(polygon, 'outerBoundaryIs')
+            linear_ring = ET.SubElement(outer_boundary, 'LinearRing')
+            
+            # Add coordinates - use max altitude for extrusion, or min altitude if no max
+            coord_elem = ET.SubElement(linear_ring, 'coordinates')
+            coord_text = []
+            
+            # Determine the altitude to use for coordinates
+            if max_altitude_m is not None and max_altitude_m > 0:
+                coordinate_altitude = max_altitude_m
+            elif min_altitude_m is not None:
+                coordinate_altitude = min_altitude_m
+            else:
+                coordinate_altitude = 0.0
+            
+            for lat, lon in coordinates:
+                coord_text.append(f"{lon},{lat},{coordinate_altitude}")
+            
+            coord_elem.text = ' '.join(coord_text)
         
         # Add style for visualization using color configuration
         fill_color = get_airspace_color(airspace_type, airspace_class)
@@ -235,7 +265,7 @@ class KMLVolumeService:
         airspace = dict(airspace_row)
         conn.close()
         
-        # Convert altitudes to meters
+        # Convert altitudes to meters for coordinates
         min_altitude_m = self._convert_altitude_to_meters(
             airspace.get('lower_limit_ft'), 
             airspace.get('lower_limit_ref')
@@ -244,6 +274,22 @@ class KMLVolumeService:
             airspace.get('upper_limit_ft'), 
             airspace.get('upper_limit_ref')
         )
+        
+        # Create readable altitude strings for display
+        min_alt_display = "Surface"
+        max_alt_display = "Unlimited"
+        
+        if airspace.get('lower_limit_ft') is not None:
+            if airspace.get('lower_limit_ref') == 'FL':
+                min_alt_display = f"{airspace.get('lower_limit_ft') * 100} FT (FL{airspace.get('lower_limit_ft')})"
+            else:
+                min_alt_display = f"{airspace.get('lower_limit_ft')} {airspace.get('lower_limit_ref', 'FT')}"
+        
+        if airspace.get('upper_limit_ft') is not None:
+            if airspace.get('upper_limit_ref') == 'FL':
+                max_alt_display = f"{airspace.get('upper_limit_ft') * 100} FT (FL{airspace.get('upper_limit_ft')})"
+            else:
+                max_alt_display = f"{airspace.get('upper_limit_ft')} {airspace.get('upper_limit_ref', 'FT')}"
         
         # Get geometry
         geometry_data = self._get_airspace_geometry(airspace_id)
@@ -264,8 +310,8 @@ class KMLVolumeService:
         Airspace Volume: {airspace.get('name', 'Unknown')}
         Class: {airspace.get('airspace_class', 'Unknown')}
         Type: {airspace.get('code_type', 'Unknown')}
-        Min Altitude: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')}
-        Max Altitude: {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
+        Min Altitude: {min_alt_display}
+        Max Altitude: {max_alt_display}
         """
         
         # Process each geometry component
@@ -279,8 +325,8 @@ class KMLVolumeService:
                 
                 # Create description with altitude info
                 description = f"""Circular boundary with radius {geom['radius_km']} km
-3D Volume: Surface to {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
-Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')} - {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')} AMSL"""
+3D Volume: {min_alt_display} to {max_alt_display}
+Altitude range: {min_alt_display} - {max_alt_display} AMSL"""
                 
                 # Create name with type and class info
                 name_parts = [airspace.get('name', 'Unknown')]
@@ -304,8 +350,37 @@ Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_lim
                 
             elif geom['type'] == 'polygon' and geom.get('vertices'):
                 coordinates = []
+                longitudes = []
+                latitudes = []
+                
                 for vertex in geom['vertices']:
-                    coordinates.append((vertex['latitude'], vertex['longitude']))
+                    lat, lon = vertex['latitude'], vertex['longitude']
+                    coordinates.append((lat, lon))
+                    longitudes.append(lon)
+                    latitudes.append(lat)
+                
+                # Validate geometry - check for suspicious outliers
+                if len(longitudes) > 3:
+                    import statistics
+                    lon_median = statistics.median(longitudes)
+                    lat_median = statistics.median(latitudes)
+                    
+                    # Flag vertices that are more than 1 degree from median
+                    outliers = []
+                    filtered_coords = []
+                    for i, (lat, lon) in enumerate(coordinates):
+                        if abs(lon - lon_median) > 1.0 or abs(lat - lat_median) > 0.5:
+                            outliers.append(f"({lon:.3f}, {lat:.3f})")
+                        else:
+                            filtered_coords.append((lat, lon))
+                    
+                    # If we have significant outliers, mention it in description
+                    geometry_note = ""
+                    if outliers and len(filtered_coords) >= 3:
+                        geometry_note = f"\nNote: {len(outliers)} outlier vertices excluded from geometry"
+                        coordinates = filtered_coords  # Use filtered coordinates
+                    elif outliers:
+                        geometry_note = f"\nWarning: Geometry contains {len(outliers)} suspicious vertices"
                 
                 # Close the polygon if not already closed
                 if coordinates and coordinates[0] != coordinates[-1]:
@@ -313,8 +388,8 @@ Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_lim
                 
                 # Create description with altitude info
                 description = f"""Polygon boundary with {len(coordinates)-1} vertices
-3D Volume: Surface to {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')}
-Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_limit_ref', '')} - {airspace.get('upper_limit_ft', 'N/A')} {airspace.get('upper_limit_ref', '')} AMSL"""
+3D Volume: {min_alt_display} to {max_alt_display}
+Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
                 
                 # Create name with type and class info
                 name_parts = [airspace.get('name', 'Unknown')]
@@ -340,15 +415,24 @@ Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_lim
         ET.indent(kml, space="  ")
         return ET.tostring(kml, encoding='unicode')
 
-    def generate_multiple_airspaces_kml(self, airspace_ids: List[int]) -> str:
-        """Generate KML for multiple airspaces"""
+    def generate_multiple_airspaces_kml(self, airspace_ids: List[int], flight_name: str = None, flight_coordinates: List[tuple] = None) -> str:
+        """Generate KML for multiple airspaces with optional flight path
+        
+        Args:
+            airspace_ids: List of airspace IDs to include
+            flight_name: Name of the flight path for document title
+            flight_coordinates: List of (lon, lat, alt_ft) tuples for original flight path
+        """
         # Create KML document
         kml = ET.Element('kml', xmlns="http://www.opengis.net/kml/2.2")
         document = ET.SubElement(kml, 'Document')
         
-        # Add document name
+        # Add document name - use flight name if provided
         doc_name = ET.SubElement(document, 'name')
-        doc_name.text = f"Multiple Airspaces ({len(airspace_ids)} airspaces)"
+        if flight_name:
+            doc_name.text = f"{flight_name} - Airspace Profile ({len(airspace_ids)} airspaces)"
+        else:
+            doc_name.text = f"Multiple Airspaces ({len(airspace_ids)} airspaces)"
         
         # Generate KML for each airspace and merge
         for airspace_id in airspace_ids:
@@ -366,9 +450,55 @@ Altitude range: {airspace.get('lower_limit_ft', 'N/A')} {airspace.get('lower_lim
                 print(f"Warning: Failed to generate KML for airspace {airspace_id}: {e}")
                 continue
         
+        # Add flight path if coordinates are provided
+        if flight_coordinates:
+            self._add_flight_path_to_kml(document, flight_coordinates, flight_name or "Flight Path")
+        
         # Convert to string
         ET.indent(kml, space="  ")
         return ET.tostring(kml, encoding='unicode')
+
+    def _add_flight_path_to_kml(self, document: ET.Element, flight_coordinates: List[tuple], flight_name: str):
+        """Add flight path LineString to KML document"""
+        # Create flight path placemark
+        placemark = ET.SubElement(document, 'Placemark')
+        
+        # Name
+        name = ET.SubElement(placemark, 'name')
+        name.text = f"✈️ {flight_name} Route"
+        
+        # Description
+        desc = ET.SubElement(placemark, 'description')
+        desc.text = f"Flight path with {len(flight_coordinates)} waypoints"
+        
+        # Style for flight path
+        style = ET.SubElement(placemark, 'Style')
+        line_style = ET.SubElement(style, 'LineStyle')
+        
+        # Red line, 3px width
+        color = ET.SubElement(line_style, 'color')
+        color.text = "ff0000ff"  # Red in KML AABBGGRR format
+        width = ET.SubElement(line_style, 'width')
+        width.text = "3"
+        
+        # Create LineString geometry
+        linestring = ET.SubElement(placemark, 'LineString')
+        extrude = ET.SubElement(linestring, 'extrude')
+        extrude.text = "1"
+        tessellate = ET.SubElement(linestring, 'tessellate')
+        tessellate.text = "1"
+        altitude_mode = ET.SubElement(linestring, 'altitudeMode')
+        altitude_mode.text = "absolute"
+        
+        # Build coordinates string: lon,lat,alt_meters 
+        coordinates = ET.SubElement(linestring, 'coordinates')
+        coord_strings = []
+        for lon, lat, alt_ft in flight_coordinates:
+            # Convert altitude from feet to meters for KML
+            alt_m = alt_ft / 3.28084
+            coord_strings.append(f"{lon},{lat},{alt_m}")
+        
+        coordinates.text = "\n        " + "\n        ".join(coord_strings) + "\n      "
 
     def save_airspace_kml(self, airspace_id: int, output_path: str) -> str:
         """Generate and save KML file for an airspace"""
