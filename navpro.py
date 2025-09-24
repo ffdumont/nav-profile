@@ -13,7 +13,7 @@ from pathlib import Path
 # Add production directory to path
 sys.path.append(str(Path(__file__).parent / "production"))
 
-from kml_volume_service import KMLVolumeService
+from visualization.kml_generator import KMLVolumeService
 
 
 def create_parser():
@@ -319,7 +319,7 @@ def cmd_list(args, kml_service):
 
 def cmd_list_profile(args):
     """Handle list --profile subcommand for flight path analysis"""
-    from flight_profile import FlightProfileAnalyzer
+    from core.flight_analyzer import FlightProfileAnalyzer
     
     if not args.profile:
         print("❌ Error: --profile requires KML flight path file")
@@ -438,7 +438,7 @@ def cmd_generate(args, kml_service):
 
 def cmd_generate_profile(args):
     """Handle generate --profile subcommand for flight path KML generation"""
-    from flight_profile import FlightProfileAnalyzer
+    from core.flight_analyzer import FlightProfileAnalyzer
     
     if not args.profile:
         print("❌ Error: --profile requires KML flight path file")
@@ -552,7 +552,7 @@ def cmd_generate_profile(args):
                 print(f"   📦 Generating combined KML: {combined_filename}...")
                 
                 # Parse flight coordinates for inclusion in combined KML
-                from airspace_query_engine import KMLFlightPathParser
+                from core.spatial_query import KMLFlightPathParser
                 flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
                 
                 # Use generate_multiple_airspaces_kml method with flight path info

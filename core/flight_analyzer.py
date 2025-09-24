@@ -7,9 +7,9 @@ import argparse
 import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-from fixed_airspace_query import FixedAirspaceQueryEngine
-from airspace_query_engine import KMLFlightPathParser
-from enhanced_flight_analyzer import interpolate_flight_path, haversine_distance
+from core.query_engine import FixedAirspaceQueryEngine
+from core.spatial_query import KMLFlightPathParser
+from core.interpolation import interpolate_flight_path, haversine_distance
 import math
 
 class FlightProfileAnalyzer:

@@ -15,7 +15,7 @@ import os
 
 # Add production directory to path for color config import
 sys.path.insert(0, os.path.dirname(__file__))
-from kml_colors_config import get_airspace_color, get_line_color, LINE_WIDTH
+from visualization.kml_styling import get_airspace_color, get_line_color, LINE_WIDTH
 
 
 class KMLVolumeService:

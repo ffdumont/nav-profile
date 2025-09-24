@@ -4,7 +4,7 @@ Enhanced flight path analyzer with interpolated points
 """
 import math
 from typing import List, Tuple
-from airspace_query_engine import AirspaceQueryEngine, KMLFlightPathParser
+from core.spatial_query import AirspaceQueryEngine, KMLFlightPathParser
 
 def interpolate_flight_path(coordinates: List[Tuple[float, float, float]], 
                           segment_distance_km: float = 5.0) -> List[Tuple[float, float, float]]:
