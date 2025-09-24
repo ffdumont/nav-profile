@@ -84,3 +84,6 @@ backup/
 # Database backups
 *.db.backup
 *.db.bak
+
+# Generated database files
+data/airspaces.db
