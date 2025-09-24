@@ -110,15 +110,15 @@ class AirspaceQueryService:
             
             # Check for borders/geometry
             try:
-                cursor.execute("SELECT COUNT(*) as border_count FROM borders WHERE airspace_id = ?", (airspace_id,))
+                cursor.execute("SELECT COUNT(*) as border_count FROM airspace_borders WHERE airspace_id = ?", (airspace_id,))
                 border_count = cursor.fetchone()
                 airspace_data['border_count'] = border_count[0] if border_count else 0
                 
                 if airspace_data['border_count'] > 0:
                     cursor.execute("""
                         SELECT COUNT(*) as vertex_count 
-                        FROM vertices 
-                        WHERE border_id IN (SELECT id FROM borders WHERE airspace_id = ?)
+                        FROM border_vertices 
+                        WHERE border_id IN (SELECT id FROM airspace_borders WHERE airspace_id = ?)
                     """, (airspace_id,))
                     vertex_count = cursor.fetchone()
                     airspace_data['vertex_count'] = vertex_count[0] if vertex_count else 0
@@ -175,7 +175,12 @@ class AirspaceQueryService:
         total_airspaces = cursor.fetchone()[0]
         
         try:
-            cursor.execute("SELECT COUNT(*) FROM airspaces WHERE has_geometry = 1")
+            cursor.execute("""
+                SELECT COUNT(DISTINCT a.id) 
+                FROM airspaces a 
+                JOIN airspace_borders ab ON a.id = ab.airspace_id 
+                JOIN border_vertices bv ON ab.id = bv.border_id
+            """)
             airspaces_with_geometry = cursor.fetchone()[0]
         except:
             airspaces_with_geometry = 0
