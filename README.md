@@ -1,10 +1,10 @@
-# AIXM Airspace Database System
+# Nav-Profile - AIXM Airspace System with 3D Visualization
 
-A comprehensive system for extracting, storing, and querying AIXM (Aeronautical Information Exchange Model) airspace data from XML files into a SQLite database.
+A comprehensive navigation profile system for extracting, storing, querying, and visualizing AIXM (Aeronautical Information Exchange Model) airspace data with professional 3D KML volume generation.
 
 ## Overview
 
-This system processes AIXM 4.5 XML files containing French airspace data (43.7 MB source file) and provides powerful search and query capabilities through both Python API and command-line interface for aviation applications.
+This system processes AIXM 4.5 XML files containing French airspace data (43.7 MB source file) and provides powerful search capabilities plus professional 3D airspace visualization through both Python API and command-line interfaces for aviation applications.
 
 **Database Statistics:**
 - 5,035 airspaces extracted and indexed
@@ -17,15 +17,16 @@ This system processes AIXM 4.5 XML files containing French airspace data (43.7 M
 - ✅ **Complete AIXM Processing** - Parse AIXM 4.5 XML files and extract all airspace data
 - ✅ **SQLite Database Storage** - Structured storage with geometry support
 - ✅ **Advanced Keyword Search** - Search by airspace names and codes with flexible options
+- ✅ **3D KML Volume Generation** - Create Google Earth-compatible 3D airspace volumes
 - ✅ **Rich Data Model** - Altitudes, operating hours, geometry, operational remarks
-- ✅ **Multiple Interfaces** - Python API and command-line tool
-- ✅ **Multiple Output Formats** - Detailed and summary views
+- ✅ **Multiple Interfaces** - Python API, command-line search, and NavPro tool
+- ✅ **Multiple Output Formats** - Detailed and summary views, plus KML export
 - ✅ **Production Ready** - Comprehensive documentation and validation
 
 ## Quick Start
 
 ```bash
-# Navigate to production directory
+# Navigate to production directory for search functionality
 cd production
 
 # Search for airspaces
@@ -41,17 +42,37 @@ python search_tool.py --summary TMA
 python -c "from aixm_query_service import AirspaceQueryService; s = AirspaceQueryService(); print([r['name'] for r in s.search_by_keyword('CHEVREUSE')])"
 ```
 
+```bash  
+# NavPro - KML volume generation from root directory
+cd ..
+
+# List CHEVREUSE airspaces
+python navpro.py --list "CHEVREUSE"
+
+# Generate 3D KML volume for airspace ID
+python navpro.py --id 4749
+
+# Generate combined KML for multiple airspaces
+python navpro.py --name "CHEVREUSE"
+
+# PowerShell wrapper (Windows)
+.\navpro.ps1 4749
+```
+
 ## Project Structure
 
 ```
 ├── production/               # Main system components
 │   ├── aixm_extractor.py          # AIXM XML extraction engine
 │   ├── aixm_query_service.py      # Database query service with search capabilities
+│   ├── kml_volume_service.py      # 3D KML volume generation service
 │   ├── search_tool.py             # Command-line search interface
 │   ├── config.py                  # Configuration settings
 │   ├── validate_system.py         # System validation and testing
 │   ├── check_db.py               # Database integrity checker
 │   └── README.md                 # Additional technical documentation
+├── navpro.py                # NavPro command-line tool (KML generation)
+├── navpro.ps1               # PowerShell wrapper for NavPro (Windows)
 ├── data/                    # Data storage
 │   ├── airspaces.db              # SQLite database (extracted data)
 │   └── AIXM4.5_all_FR_OM_2025-10-02.xml  # Source AIXM XML file
@@ -190,6 +211,172 @@ python search_tool.py --code LFPNFS2
 # Case-sensitive search
 python search_tool.py -c Paris
 ```
+
+## NavPro - Command Line Tool
+
+**NavPro** is the comprehensive command-line interface for the nav-profile application, providing professional navigation services with a consistent subcommand structure.
+
+### 🛩️ Features
+
+- **Professional CLI**: Consistent subcommand structure (`navpro list`, `navpro generate`, `navpro stats`)
+- **Airspace Search**: Find airspaces by name, ID, type, or list all with flexible filters
+- **3D KML Generation**: Create Google Earth-compatible 3D airspace volumes with altitude extrusion
+- **Batch Operations**: Process multiple airspaces individually or as combined files  
+- **Database Statistics**: Comprehensive analysis of airspace coverage and geometry
+- **Cross-Platform**: Python script with PowerShell wrapper for Windows users
+
+### 🚀 Usage
+
+#### Command Structure
+
+NavPro uses a modern subcommand structure for consistency:
+
+```bash
+# List airspaces
+python navpro.py list --name "CHEVREUSE"
+python navpro.py list --type RAS --limit 10 --summary
+python navpro.py list --id 4749 --verbose
+
+# Generate KML volumes
+python navpro.py generate --id 4749
+python navpro.py generate --name "CHEVREUSE" --directory kml_output
+python navpro.py generate --ids 4749 4750 4751 --output combined.kml
+
+# Database statistics
+python navpro.py stats
+python navpro.py stats --detailed
+
+# Help system
+python navpro.py --help
+python navpro.py help generate
+```
+
+#### PowerShell Wrapper (Windows)
+
+```powershell
+# List airspaces
+.\navpro.ps1 list -Name "CHEVREUSE"
+.\navpro.ps1 list -Type RAS -Limit 10 -Summary
+
+# Generate KML volumes  
+.\navpro.ps1 generate -Id 4749
+.\navpro.ps1 generate -Name "CHEVREUSE" -Directory kml_output
+.\navpro.ps1 generate -Ids 4749,4750,4751 -Output combined.kml
+
+# Database statistics
+.\navpro.ps1 stats -Detailed
+
+# Help
+.\navpro.ps1 -Help
+.\navpro.ps1 help generate
+```
+
+### 📊 Examples
+
+#### Listing Airspaces
+```bash
+# Find CHEVREUSE airspaces
+$ python navpro.py list --name "CHEVREUSE"
+🛩️ Initializing NavPro services...
+✅ NavPro services initialized successfully
+🔍 Searching airspaces...
+✅ Found 4 airspace(s) matching pattern 'CHEVREUSE'
+
+🏷️  CHEVREUSE 1 (ID: 4749)
+   Type: RAS | Class: UNKNOWN
+   Altitude: 0 FT to 2000 FT
+
+# Summary format for quick overview
+$ python navpro.py list --type RAS --limit 5 --summary
+  2361 |    RAS | LFSTMZ003                [No geometry]
+  2374 |    RAS | LFSRMZDN                 [No geometry] 
+  2829 |    RAS | LFR175BZ2                [Geometry: 1 components]
+```
+
+#### Generating KML Volumes
+```bash
+# Single airspace
+$ python navpro.py generate --id 4749
+🛩️ Preparing KML generation...
+� Generating KML for airspace ID 4749
+   ✅ CHEVREUSE 1: CHEVREUSE_1_4749.kml (1410 bytes)
+
+# Multiple airspaces with combined output  
+$ python navpro.py generate --ids 4749 4750 4751
+🎯 Generating KML for 3 airspace IDs
+🔗 Generating combined KML file...
+   ✅ Combined: combined_3_airspaces.kml (3988 bytes, 3 volumes)
+```
+
+#### Database Statistics
+```bash
+$ python navpro.py stats
+� NavPro Database Statistics
+==================================================
+Total airspaces: 5035
+
+Airspace Types:
+     D-OTHER: 2228 airspaces
+           R:  610 airspaces
+         TMA:  510 airspaces
+         RAS:  398 airspaces
+
+🌍 KML Generation Capability:
+  Ready for KML: 3549 airspaces
+  3D volumes available for professional visualization
+```
+
+### 🌍 3D KML Output
+
+NavPro generates KML files with proper 3D volume visualization:
+
+- **Altitude Extrusion**: True 3D volumes from surface to ceiling altitude
+- **AMSL Altitudes**: Proper Above Mean Sea Level altitude handling
+- **Visual Styling**: Semi-transparent polygons with colored outlines
+- **Metadata**: Detailed airspace information in descriptions
+
+**Compatible with:**
+- Google Earth (full 3D visualization)
+- Google Maps (My Maps)
+- Aviation flight planning software
+- GIS applications
+
+#### Example: CHEVREUSE 1
+- **Volume**: Surface to 2000 ft AMSL (609.6 meters)
+- **Type**: Restricted Area (RAS)
+- **Geometry**: Polygon boundary with precise coordinates
+- **Output**: 3D extruded volume for clear airspace visualization
+
+### 📝 NavPro Command Reference
+
+| Command | Description | Key Options |
+|---------|-------------|-------------|
+| `list` | Search and display airspaces | `--name`, `--id`, `--type`, `--all`, `--summary`, `--limit` |
+| `generate` | Create 3D KML volumes | `--id`, `--ids`, `--name`, `--type`, `--output`, `--directory` |
+| `stats` | Show database statistics | `--detailed` |
+| `help` | Show detailed help | `<command>` for specific command help |
+
+#### Global Options
+- `--verbose, -v`: Show detailed output with progress information
+- `--quiet, -q`: Minimal output mode for scripting
+- `--help, -h`: Show help information
+
+#### Advanced Generate Options  
+- `--individual`: Generate separate files even for multiple airspaces
+- `--combined-only`: Generate only combined file for multiple airspaces
+- `--output, -o`: Custom output filename  
+- `--directory, -d`: Custom output directory
+
+### 🚀 Future NavPro Enhancements
+
+NavPro is designed to expand with additional navigation services:
+
+- **Route Planning**: Generate flight paths avoiding restricted areas
+- **Obstacle Analysis**: Height clearance calculations  
+- **Weather Integration**: METAR/TAF data overlay
+- **NOTAM Services**: Temporary restriction updates
+- **Chart Generation**: Custom navigation charts
+- **Multi-format Export**: GPX, GeoJSON, Shapefile support
 
 ## Airspace Types
 
@@ -357,10 +544,12 @@ Each airspace record contains:
 
 ## System Status
 
-✅ **Production Ready** - Complete extraction and search system  
+✅ **Production Ready** - Complete extraction, search, and KML generation system  
 📊 **5,035 Airspaces Indexed** - Full French airspace coverage  
+🌍 **3D KML Volumes** - Google Earth-compatible airspace visualization  
 🗓️ **Data Current as of October 2, 2025** - Latest AIXM data  
 🔍 **Full Search Capabilities Active** - Keyword and code search  
+🛩️ **NavPro Command-Line Tool** - Professional airspace services  
 ⚡ **High Performance** - Sub-second query responses  
 📚 **Comprehensive Documentation** - Complete usage guide  
 
