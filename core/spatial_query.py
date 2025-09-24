@@ -231,17 +231,61 @@ class KMLFlightPathParser:
     def parse_kml_coordinates(kml_file_path: str) -> List[Tuple[float, float, float]]:
         """Extract coordinates from KML file"""
         try:
-            tree = ET.parse(kml_file_path)
-            root = tree.getroot()
+            # Read the file and clean up any namespace issues
+            with open(kml_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
             
-            # Find coordinates in the navigation LineString
-            ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+            # Simple approach: find coordinates using string parsing first
+            # This avoids XML namespace issues
+            import re
             
-            # Look for LineString coordinates
-            linestring = root.find('.//kml:LineString/kml:coordinates', ns)
-            if linestring is not None:
-                coords_text = linestring.text.strip()
-                return KMLFlightPathParser._parse_coordinates_string(coords_text)
+            # Look for <coordinates>...</coordinates> pattern
+            coord_pattern = r'<coordinates>(.*?)</coordinates>'
+            match = re.search(coord_pattern, content, re.DOTALL)
+            
+            if match:
+                coords_text = match.group(1).strip()
+                coordinates = KMLFlightPathParser._parse_coordinates_string(coords_text)
+                
+                # Detect if this is a trace (many points) vs route (few waypoints)
+                if len(coordinates) > 50:
+                    print(f"Detected flight trace with {len(coordinates)} points")
+                else:
+                    print(f"Detected flight route with {len(coordinates)} waypoints")
+                
+                return coordinates
+            
+            # Fallback: try XML parsing with namespace cleanup
+            # Remove problematic namespace prefixes
+            cleaned_content = re.sub(r'gx:', '', content)  # Remove gx: prefix
+            cleaned_content = re.sub(r'xmlns:gx="[^"]*"', '', cleaned_content)  # Remove gx namespace declaration
+            
+            root = ET.fromstring(cleaned_content)
+            
+            # Find coordinates in any LineString element
+            def find_coordinates(element):
+                if element.tag.endswith('LineString'):
+                    for child in element:
+                        if child.tag.endswith('coordinates'):
+                            return child
+                for child in element:
+                    result = find_coordinates(child)
+                    if result is not None:
+                        return result
+                return None
+            
+            coordinates_elem = find_coordinates(root)
+            
+            if coordinates_elem is not None and coordinates_elem.text:
+                coords_text = coordinates_elem.text.strip()
+                coordinates = KMLFlightPathParser._parse_coordinates_string(coords_text)
+                
+                if len(coordinates) > 50:
+                    print(f"Detected flight trace with {len(coordinates)} points")
+                else:
+                    print(f"Detected flight route with {len(coordinates)} waypoints")
+                
+                return coordinates
             
             print("No LineString coordinates found in KML")
             return []
@@ -252,28 +296,60 @@ class KMLFlightPathParser:
     
     @staticmethod
     def _parse_coordinates_string(coords_text: str) -> List[Tuple[float, float, float]]:
-        """Parse coordinate string from KML"""
+        """Parse coordinate string from KML - handles both space and comma separated formats"""
         coordinates = []
         
-        # Remove extra whitespace and split by comma
-        parts = coords_text.replace('\n', '').replace('\t', '').split(',')
+        # Clean up the text and handle different separators
+        clean_text = coords_text.replace('\n', ' ').replace('\t', ' ').strip()
         
-        # Process in groups of 3 (lon, lat, alt)
-        for i in range(0, len(parts) - 2, 3):
-            try:
-                lon = float(parts[i].strip())
-                lat = float(parts[i + 1].strip())
-                alt_m = float(parts[i + 2].strip())
-                
-                # Convert altitude from meters to feet
-                alt_ft = alt_m * 3.28084
-                
-                coordinates.append((lon, lat, alt_ft))
-            except (ValueError, IndexError) as e:
-                print(f"Error parsing coordinate group at index {i}: {e}")
-                continue
+        # Check if coordinates are space-separated (trace format) or comma-only (route format)
+        if ' ' in clean_text and ',' in clean_text:
+            # Space-separated triplets format: "lon,lat,alt lon,lat,alt ..."
+            coord_parts = clean_text.split()
+            
+            for coord_part in coord_parts:
+                # Each coordinate part should be "lon,lat,alt"
+                if ',' in coord_part:
+                    try:
+                        lon_lat_alt = coord_part.split(',')
+                        if len(lon_lat_alt) >= 3:
+                            lon = float(lon_lat_alt[0])
+                            lat = float(lon_lat_alt[1])
+                            alt_m = float(lon_lat_alt[2])
+                            
+                            # Convert altitude from meters to feet
+                            alt_ft = alt_m * 3.28084
+                            
+                            coordinates.append((lon, lat, alt_ft))
+                    except (ValueError, IndexError) as e:
+                        print(f"Error parsing coordinate: {coord_part} - {e}")
+                        continue
+        else:
+            # Comma-only format: "lon,lat,alt,lon,lat,alt,..."
+            parts = clean_text.split(',')
+            
+            # Process in groups of 3 (lon, lat, alt)
+            for i in range(0, len(parts) - 2, 3):
+                try:
+                    lon = float(parts[i].strip())
+                    lat = float(parts[i + 1].strip())
+                    alt_m = float(parts[i + 2].strip())
+                    
+                    # Convert altitude from meters to feet
+                    alt_ft = alt_m * 3.28084
+                    
+                    coordinates.append((lon, lat, alt_ft))
+                except (ValueError, IndexError) as e:
+                    print(f"Error parsing coordinate group at index {i}: {e}")
+                    continue
         
         return coordinates
+    
+    @staticmethod
+    def is_trace_file(kml_file_path: str) -> bool:
+        """Determine if KML file contains a flight trace (many points) vs route (few waypoints)"""
+        coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file_path)
+        return len(coordinates) > 50  # Threshold to distinguish trace from route
 
 
 def test_airspace_query():

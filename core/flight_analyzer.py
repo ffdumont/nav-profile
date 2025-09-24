@@ -36,8 +36,20 @@ class FlightProfileAnalyzer:
         if not waypoints:
             raise ValueError(f"Failed to parse coordinates from {kml_path}")
         
-        # Interpolate flight path
-        interpolated_points = interpolate_flight_path(waypoints, sample_distance_km)
+        # Determine if this is a trace or route file and handle accordingly
+        is_trace = KMLFlightPathParser.is_trace_file(kml_path)
+        
+        if is_trace:
+            # For trace files, we already have dense data - thin it out for analysis
+            sample_factor = max(1, len(waypoints) // 1000)  # Keep approximately 1000 points max
+            if sample_factor > 1:
+                sampled_waypoints = waypoints[::sample_factor]
+                interpolated_points = sampled_waypoints
+            else:
+                interpolated_points = waypoints
+        else:
+            # For route files, interpolate between waypoints as before
+            interpolated_points = interpolate_flight_path(waypoints, sample_distance_km)
         
         # Generate corridor points (same as original analyzer)
         corridor_points = self._generate_corridor_points(interpolated_points)
@@ -87,8 +99,24 @@ class FlightProfileAnalyzer:
         if not waypoints:
             raise ValueError(f"Failed to parse coordinates from {kml_path}")
         
-        # Interpolate flight path
-        interpolated_points = interpolate_flight_path(waypoints, sample_distance_km)
+        # Determine if this is a trace or route file
+        is_trace = KMLFlightPathParser.is_trace_file(kml_path)
+        
+        if is_trace:
+            # For trace files, we already have dense data - thin it out for analysis
+            print(f"Processing flight trace with {len(waypoints)} points")
+            # Sample every Nth point to reduce processing time while maintaining accuracy
+            sample_factor = max(1, len(waypoints) // 1000)  # Keep approximately 1000 points max
+            if sample_factor > 1:
+                sampled_waypoints = waypoints[::sample_factor]
+                print(f"Sampled to {len(sampled_waypoints)} points (every {sample_factor} points)")
+                interpolated_points = sampled_waypoints
+            else:
+                interpolated_points = waypoints
+        else:
+            # For route files, interpolate between waypoints as before
+            print(f"Processing flight route with {len(waypoints)} waypoints")
+            interpolated_points = interpolate_flight_path(waypoints, sample_distance_km)
         
         # Calculate flight statistics
         total_distance = self._calculate_total_distance(waypoints)
@@ -148,6 +176,7 @@ class FlightProfileAnalyzer:
         report = {
             'flight_info': {
                 'kml_path': kml_path,
+                'is_trace': is_trace,
                 'waypoints': len(waypoints),
                 'interpolated_points': len(interpolated_points),
                 'corridor_points': len(corridor_points),
