@@ -10,6 +10,21 @@ import sys
 import os
 from pathlib import Path
 
+# Initialize colorama for cross-platform color support
+try:
+    from colorama import init, Fore, Style
+    init(autoreset=True)
+    COLORS_AVAILABLE = True
+except ImportError:
+    # Fallback if colorama not available
+    COLORS_AVAILABLE = False
+    class Fore:
+        RED = ""
+        GREEN = ""
+    class Style:
+        BRIGHT = ""
+        RESET_ALL = ""
+
 # Add production directory to path
 sys.path.append(str(Path(__file__).parent / "production"))
 
@@ -379,12 +394,21 @@ def cmd_list_profile(args):
         print("=" * 80)
         
         # Display filtered chronological crossings
+        red_zone_count = 0
         for i, crossing in enumerate(filtered_crossings, 1):
             airspace = crossing['airspace']
             distance = crossing['distance_km']
             
             # Classify airspace type
             code_type = airspace.get('code_type', 'Unknown').upper()
+            airspace_class = airspace.get('airspace_class', 'Unknown').upper()
+            
+            # Check if this is a red zone airspace (critical/restricted)
+            is_red_zone = (code_type in ['P', 'R'] or airspace_class == 'A')
+            if is_red_zone:
+                red_zone_count += 1
+            
+            # Select emoji and colors
             if code_type in ['TMA']:
                 type_emoji = "🛬"
             elif code_type in ['RAS']:
@@ -396,8 +420,20 @@ def cmd_list_profile(args):
             else:
                 type_emoji = "🌐"
             
-            print(f"{i:2d}. {type_emoji} {airspace['name']} ({airspace.get('code_id', 'N/A')})")
-            print(f"     Type: {airspace.get('code_type', 'Unknown')} - Class: {airspace.get('airspace_class', 'Unknown')}")
+            # Apply red highlighting for critical airspaces
+            if is_red_zone and COLORS_AVAILABLE:
+                name_display = f"{Fore.RED}{Style.BRIGHT}{airspace['name']}{Style.RESET_ALL}"
+                type_display = f"{Fore.RED}{Style.BRIGHT}Type: {code_type}{Style.RESET_ALL}"
+                class_display = f"{Fore.RED}{Style.BRIGHT}Class: {airspace_class}{Style.RESET_ALL}"
+                warning = f" {Fore.RED}{Style.BRIGHT}*** CRITICAL AIRSPACE ***{Style.RESET_ALL}"
+            else:
+                name_display = airspace['name']
+                type_display = f"Type: {code_type}"
+                class_display = f"Class: {airspace_class}"
+                warning = ""
+            
+            print(f"{i:2d}. {type_emoji} {name_display} ({airspace.get('code_id', 'N/A')}){warning}")
+            print(f"     {type_display} - {class_display}")
             
             # Altitude conversion for display
             lower_alt = airspace.get('lower_limit_ft_converted', airspace.get('lower_limit_ft', 'N/A'))
@@ -407,6 +443,23 @@ def cmd_list_profile(args):
             print()
         
         print("=" * 80)
+        
+        # Add red zone warning summary
+        if red_zone_count > 0 and COLORS_AVAILABLE:
+            print(f"{Fore.RED}{Style.BRIGHT}⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!{Style.RESET_ALL}")
+            print(f"{Fore.RED}These airspaces may require special authorization or are prohibited:{Style.RESET_ALL}")
+            print(f"{Fore.RED}• Class A: IFR clearance required{Style.RESET_ALL}")
+            print(f"{Fore.RED}• P (Prohibited): Flight prohibited{Style.RESET_ALL}")
+            print(f"{Fore.RED}• R (Restricted): Flight restrictions apply{Style.RESET_ALL}")
+            print()
+        elif red_zone_count > 0:
+            print(f"⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!")
+            print("These airspaces may require special authorization or are prohibited:")
+            print("• Class A: IFR clearance required")
+            print("• P (Prohibited): Flight prohibited") 
+            print("• R (Restricted): Flight restrictions apply")
+            print()
+        
         if filter_types and filtered_count > 0:
             print(f"🏁 Analysis complete - {len(filtered_crossings)} relevant airspaces shown ({filtered_count} filtered out)")
         else:
