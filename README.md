@@ -1,23 +1,60 @@
 # 🛩️ Nav Profile - Flight Path Airspace Analyzer
 
-A comprehensive Python tool for analyzing KML flight paths against French airspace data, providing detailed corridor-based airspace intersection analysis with professional CLI interface.
+A comprehensive Windows desktop application for analyzing KML flight paths against French airspace data, providing detailed corridor-based airspace intersection analysis with an intuitive GUI interface.
+
+## 📥 Download & Installation
+
+### For Windows Users (Recommended)
+1. **Download**: Get the latest release from [Releases](../../releases/latest)
+2. **Extract**: Unzip `NavPro_v1.0.0_Windows.zip` to any folder
+3. **Run**: Double-click `NavPro.exe` or use `Launch_NavPro.bat`
+4. **No Python Required**: Standalone executable with all dependencies included
+
+### System Requirements
+- Windows 10/11 (64-bit)
+- 50MB free disk space
+- Optional: Google Earth Pro for KML visualization
 
 ## ✨ Features
 
+### 🖥️ Windows GUI Application
+- **User-Friendly Interface**: No command line required - clean tkinter desktop application
+- **File Browsing**: Easy selection of AIXM XML files and KML flight paths
+- **Real-Time Output**: Live analysis results displayed in scrollable text area
+- **Google Earth Integration**: Automatic launching with generated visualization KMLs
+
+### 🛩️ Flight Analysis Engine  
 - **3D Spatial Indexing**: High-performance STRtree-based airspace queries (O(log n))
 - **Corridor Analysis**: Configurable 3D corridor around flight path (±height, ±width)
-- **Flight Level Support**: Automatic FL→feet conversion (FL65 = 6500ft)
-- **Comprehensive Reports**: Categorized airspace analysis (TMAs, RAS, Restricted, etc.)
-- **Multiple Formats**: Console output + JSON export
-- **Professional CLI**: Integrated help system and argument validation
+- **Flight Trace Support**: Handle both routes (waypoints) and traces (GPS tracks)
+- **Critical Airspace Warnings**: Red highlighting for Class A, Prohibited (P), and Restricted (R) zones
+- **Comprehensive Reports**: Categorized airspace analysis with detailed explanations
+
+### 📊 Professional Output
+- **Organized KML Generation**: Airspace folders by type for Google Earth visibility
+- **Multiple Formats**: GUI display + KML export with professional styling
+- **Safety Warnings**: Clear identification of critical airspace crossings
 
 ## 🚀 Quick Start
+
+### Using the GUI Application
+
+1. **Launch**: Run `NavPro.exe` (GUI opens automatically)
+2. **Select AIXM File**: Browse and select your AIXM XML airspace database
+3. **Select Flight Path**: Choose your KML flight trace or route file
+4. **Configure Corridor**: Set height (feet) and width (nautical miles) 
+5. **Analyze**: Click "List Airspace Crossings" for detailed report
+6. **Visualize**: Click "Generate KML" to create Google Earth visualization
+
+![NavPro GUI Screenshot](docs/screenshot.png)
+
+### Command Line (Advanced Users)
 
 ```bash
 # Basic analysis with default corridor (±1000ft, ±10NM)
 python navpro.py profile flight.kml
 
-# Custom corridor analysis
+# Custom corridor analysis  
 python navpro.py profile flight.kml --corridor-height 500 --corridor-width 5
 
 # Export to JSON
@@ -29,6 +66,7 @@ python navpro.py help profile
 
 ## 📊 Example Output
 
+### GUI Analysis Report
 ```
 🛩️ FLIGHT PROFILE ANALYSIS REPORT
 Flight: LFXU-LFFU.kml | Distance: 240.9 km | Altitude: 1400-3100 ft
@@ -36,9 +74,21 @@ Corridor: ±1000 ft, ±10.0 NM
 
 SUMMARY: 53 airspaces found
 
+⚠️  CRITICAL AIRSPACE WARNINGS ⚠️
+3 CRITICAL AIRSPACE CROSSINGS DETECTED:
+
+RESTRICTED AREAS (R) - Flight restrictions apply:
+- LFR35A (R35A) at 33.2 km - Ground to 1500 ft
+- LFR149B (R149B) at 128.7 km - Ground to 2000 ft
+
+CLASS A AIRSPACE - IFR clearance required:
+- PARIS TMA (CLAS A) at 89.1 km - 3500 ft to FL195
+
+🔴 Review flight plan carefully - Critical airspace crossings detected
+
 TMAS (11): ORLEANS 1.1, AVORD 1.1, PARIS 2, PARIS 3...
 RAS (14): SEINE 1-6, PARIS SUD, PARIS NORD...  
-RESTRICTED (9): LFR149B, LFR20B5, LFR35A...
+RESTRICTED (2): LFR149B, LFR35A...
 ```
 
 ## 🏗️ Architecture
