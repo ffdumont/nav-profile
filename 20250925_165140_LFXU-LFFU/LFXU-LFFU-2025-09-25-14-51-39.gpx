@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" creator="SkyDreamSoft" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>LFXU-LFFU</name>
+    <time>2025-09-25T14:51:39+00:00</time>
+  </metadata>
+  <wpt lat="48.998611" lon="1.941667">
+    <ele>426.72</ele>
+    <magvar>-0.53</magvar>
+    <name>LFXU - LES MUREAUX</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.941239" lon="1.953162">
+    <ele>426.72</ele>
+    <magvar>-0.52</magvar>
+    <name>MOR1V</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.834312" lon="1.930541">
+    <ele>548.64</ele>
+    <magvar>-1.05</magvar>
+    <name>PXSW</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.71056" lon="1.872139">
+    <ele>548.64</ele>
+    <magvar>-1.07</magvar>
+    <name>HOLAN</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.552796" lon="1.931751">
+    <ele>701.04</ele>
+    <magvar>-1.65</magvar>
+    <name>ARNOU</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.381675" lon="1.993057">
+    <ele>944.88</ele>
+    <magvar>-2.48</magvar>
+    <name>OXWW</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="48.077778" lon="2.060833">
+    <ele>944.88</ele>
+    <magvar>-2.45</magvar>
+    <name>LFFF/OE</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="47.605899" lon="2.186213">
+    <ele>883.92</ele>
+    <magvar>-2.22</magvar>
+    <name>BEVRO</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <wpt lat="46.871111" lon="2.376944">
+    <ele>0</ele>
+    <magvar>1.99</magvar>
+    <name>LFFU - CHATEAUNEUF SUR CHER</name>
+    <cmt></cmt>
+    <desc></desc>
+  </wpt>
+  <rte>
+    <rtept lat="48.998611" lon="1.941667">
+      <ele>426.72</ele>
+      <magvar>-0.53</magvar>
+      <name>LFXU - LES MUREAUX</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.941239" lon="1.953162">
+      <ele>426.72</ele>
+      <magvar>-0.52</magvar>
+      <name>MOR1V</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.834312" lon="1.930541">
+      <ele>548.64</ele>
+      <magvar>-1.05</magvar>
+      <name>PXSW</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.71056" lon="1.872139">
+      <ele>548.64</ele>
+      <magvar>-1.07</magvar>
+      <name>HOLAN</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.552796" lon="1.931751">
+      <ele>701.04</ele>
+      <magvar>-1.65</magvar>
+      <name>ARNOU</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.381675" lon="1.993057">
+      <ele>944.88</ele>
+      <magvar>-2.48</magvar>
+      <name>OXWW</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="48.077778" lon="2.060833">
+      <ele>944.88</ele>
+      <magvar>-2.45</magvar>
+      <name>LFFF/OE</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="47.605899" lon="2.186213">
+      <ele>883.92</ele>
+      <magvar>-2.22</magvar>
+      <name>BEVRO</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+    <rtept lat="46.871111" lon="2.376944">
+      <ele>0</ele>
+      <magvar>1.99</magvar>
+      <name>LFFU - CHATEAUNEUF SUR CHER</name>
+      <cmt></cmt>
+      <desc></desc>
+    </rtept>
+  </rte>
+</gpx>

@@ -40,9 +40,33 @@ if exist "README_DIST.md" (
     echo ✓ README.md copied
 )
 
-REM Create sample data folder with instructions
+REM Create sample data folder with sample files
+echo Copying sample files...
 mkdir "NavPro_Distribution\sample_data"
-echo Place your KML flight profiles in this folder > "NavPro_Distribution\sample_data\Place_KML_files_here.txt"
+
+REM Copy corrected KML sample
+if exist "LFXU-LFFU-CORRECTED.kml" (
+    copy "LFXU-LFFU-CORRECTED.kml" "NavPro_Distribution\sample_data\"
+    echo ✓ Corrected KML sample copied
+) else (
+    echo ⚠ Warning: LFXU-LFFU-CORRECTED.kml not found
+)
+
+REM Copy AIXM sample database  
+if exist "data\AIXM4.5_all_FR_OM_2025-10-02.xml" (
+    copy "data\AIXM4.5_all_FR_OM_2025-10-02.xml" "NavPro_Distribution\sample_data\"
+    echo ✓ AIXM sample database copied
+) else (
+    echo ⚠ Warning: AIXM4.5_all_FR_OM_2025-10-02.xml not found in data folder
+)
+
+REM Copy additional KML samples if they exist
+if exist "data\*.kml" (
+    copy "data\*.kml" "NavPro_Distribution\sample_data\"
+    echo ✓ Additional KML samples copied
+) else (
+    echo Place your KML flight profiles in this folder > "NavPro_Distribution\sample_data\Place_KML_files_here.txt"
+)
 
 REM Create launch script
 echo @echo off > "NavPro_Distribution\Launch_NavPro.bat"

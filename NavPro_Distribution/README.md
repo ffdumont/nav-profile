@@ -18,6 +18,27 @@ A user-friendly Windows application for analyzing flight paths and generating KM
 - AIXM XML airspace database file
 - KML flight profile files (routes or traces)
 
+### 📁 **Sample Files Included**
+This distribution includes sample files to get you started immediately:
+
+#### **sample_data/AIXM4.5_all_FR_OM_2025-10-02.xml**
+- Complete French airspace database (AIXM 4.5 format)
+- Contains TMAs, Restricted Areas, Class A airspace, Control Zones, and RAS sectors
+- Ready to use with the application - no additional setup required
+
+#### **sample_data/LFXU-LFFU-CORRECTED.kml**
+- Sample flight route: Les Mureaux (LFXU) to Châteauneuf-sur-Cher (LFFU)  
+- Corrected altitude profile with proper flight constraints
+- Demonstrates critical airspace crossings (Class A, Restricted Areas)
+- Perfect for testing all application features
+
+#### **Quick Test:**
+1. Launch NavPro
+2. Select `sample_data/AIXM4.5_all_FR_OM_2025-10-02.xml` as AIXM file
+3. Select `sample_data/LFXU-LFFU-CORRECTED.kml` as flight profile
+4. Click "List Airspace Crossings" to see the analysis
+5. Click "Generate KML" to create Google Earth visualization
+
 ### 🚀 **Quick Start**
 
 #### 1. Install Google Earth Pro (Optional but Recommended)

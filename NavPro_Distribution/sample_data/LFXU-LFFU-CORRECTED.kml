@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+    <name>LFXU-LFFU-CORRECTED</name>
+    <description>Corrected flight plan with accurate altitude profile from SDVFR</description>
+    <open>1</open>
+    
+    <!-- Styles for different waypoint types -->
+    <Style id="departure">
+        <IconStyle>
+            <color>ff00ff00</color>
+            <scale>1.2</scale>
+            <Icon>
+                <href>http://maps.google.com/mapfiles/kml/shapes/airports.png</href>
+            </Icon>
+        </IconStyle>
+        <LabelStyle>
+            <color>ff00ff00</color>
+            <scale>1.1</scale>
+        </LabelStyle>
+    </Style>
+    
+    <Style id="waypoint">
+        <IconStyle>
+            <color>ff0000ff</color>
+            <scale>1.0</scale>
+            <Icon>
+                <href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href>
+            </Icon>
+        </IconStyle>
+        <LabelStyle>
+            <color>ff0000ff</color>
+        </LabelStyle>
+    </Style>
+    
+    <Style id="destination">
+        <IconStyle>
+            <color>ffff0000</color>
+            <scale>1.2</scale>
+            <Icon>
+                <href>http://maps.google.com/mapfiles/kml/shapes/airports.png</href>
+            </Icon>
+        </IconStyle>
+        <LabelStyle>
+            <color>ffff0000</color>
+            <scale>1.1</scale>
+        </LabelStyle>
+    </Style>
+    
+    <Style id="flightpath">
+        <LineStyle>
+            <color>7f00ffff</color>
+            <width>3</width>
+        </LineStyle>
+    </Style>
+    
+    <!-- Flight Path with CORRECTED altitudes -->
+    <Placemark>
+        <name>LFXU-LFFU Flight Path (Corrected)</name>
+        <description>Corrected flight path with accurate altitude constraints</description>
+        <styleUrl>#flightpath</styleUrl>
+        <LineString>
+            <extrude>1</extrude>
+            <tessellate>1</tessellate>
+            <altitudeMode>absolute</altitudeMode>
+            <!-- CORRECTED coordinates with proper altitude profile -->
+            <coordinates>
+                1.941667,48.998611,426.72,
+                1.953162,48.941239,426.72,
+                1.930541,48.834312,548.64,
+                1.872139,48.71056,548.64,
+                1.931751,48.552796,548.64,
+                1.993057,48.381675,701.04,
+                2.060833,48.077778,701.04,
+                2.186213,47.605899,701.04,
+                2.376944,46.871111,701.04
+            </coordinates>
+        </LineString>
+    </Placemark>
+    
+    <!-- Individual waypoints with correct altitudes -->
+    <Folder>
+        <name>Waypoints (Corrected)</name>
+        
+        <Placemark>
+            <name>LFXU - LES MUREAUX</name>
+            <description>Departure Airport - Altitude: 1,400 ft (426.72m)</description>
+            <styleUrl>#departure</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.941667,48.998611,426.72</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>MOR1V</name>
+            <description>Waypoint - Altitude: 1,400 ft (426.72m)</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.953162,48.941239,426.72</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>PXSW</name>
+            <description>Waypoint - Altitude: 1,800 ft (548.64m)</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.930541,48.834312,548.64</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>HOLAN</name>
+            <description>Waypoint - Altitude: 1,800 ft (548.64m)</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.872139,48.71056,548.64</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>ARNOU</name>
+            <description>CORRECTED: Waypoint - Altitude: 1,800 ft (548.64m) - Start climb after this point</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.931751,48.552796,548.64</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>OXWW</name>
+            <description>CORRECTED: Waypoint - Altitude: 2,300 ft (701.04m) - Reached after climb from ARNOU</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>1.993057,48.381675,701.04</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>LFFF/OE</name>
+            <description>CORRECTED: Waypoint - Altitude: 2,300 ft (701.04m)</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>2.060833,48.077778,701.04</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>BEVRO</name>
+            <description>CORRECTED: Waypoint - Altitude: 2,300 ft (701.04m)</description>
+            <styleUrl>#waypoint</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>2.186213,47.605899,701.04</coordinates>
+            </Point>
+        </Placemark>
+        
+        <Placemark>
+            <name>LFFU - CHATEAUNEUF SUR CHER</name>
+            <description>CORRECTED: Destination Airport - Altitude: 2,300 ft (701.04m) - Fixed from 0 ft error</description>
+            <styleUrl>#destination</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <coordinates>2.376944,46.871111,701.04</coordinates>
+            </Point>
+        </Placemark>
+    </Folder>
+    
+    <!-- Flight Information -->
+    <Folder>
+        <name>Flight Information</name>
+        <Placemark>
+            <name>Flight Details</name>
+            <description><![CDATA[
+                <h3>CORRECTED Flight Plan: LFXU → LFFU</h3>
+                <p><b>Aircraft:</b> F-HBCT</p>
+                <p><b>Date:</b> 2025-09-25</p>
+                <p><b>Distance:</b> ~241 km</p>
+                
+                <h4>Altitude Corrections Made:</h4>
+                <ul>
+                    <li><b>ARNOU:</b> Fixed from 2,300 ft to 1,800 ft</li>
+                    <li><b>OXWW:</b> Fixed from 3,100 ft to 2,300 ft (after climb from ARNOU)</li>
+                    <li><b>All subsequent waypoints:</b> Maintained at 2,300 ft</li>
+                    <li><b>LFFU destination:</b> Fixed from 0 ft to 2,300 ft</li>
+                </ul>
+                
+                <h4>Altitude Profile:</h4>
+                <ul>
+                    <li><b>LFXU → PXSW:</b> 1,400 ft → 1,800 ft</li>
+                    <li><b>PXSW → ARNOU:</b> Maintain 1,800 ft</li>
+                    <li><b>ARNOU → OXWW:</b> Climb 1,800 ft → 2,300 ft</li>
+                    <li><b>OXWW → LFFU:</b> Maintain 2,300 ft</li>
+                </ul>
+            ]]></description>
+            <Point>
+                <coordinates>2.15,47.9,1000</coordinates>
+            </Point>
+        </Placemark>
+    </Folder>
+</Document>
+</kml>
