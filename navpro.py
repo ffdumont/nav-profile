@@ -395,6 +395,8 @@ def cmd_list_profile(args):
         
         # Display filtered chronological crossings
         red_zone_count = 0
+        critical_airspaces = []  # Store critical airspaces for summary
+        
         for i, crossing in enumerate(filtered_crossings, 1):
             airspace = crossing['airspace']
             distance = crossing['distance_km']
@@ -407,6 +409,13 @@ def cmd_list_profile(args):
             is_red_zone = (code_type in ['P', 'R'] or airspace_class == 'A')
             if is_red_zone:
                 red_zone_count += 1
+                critical_airspaces.append({
+                    'name': airspace['name'],
+                    'code_id': airspace.get('code_id', 'N/A'),
+                    'type': code_type,
+                    'class': airspace_class,
+                    'distance': distance
+                })
             
             # Select emoji and colors
             if code_type in ['TMA']:
@@ -426,6 +435,12 @@ def cmd_list_profile(args):
                 type_display = f"{Fore.RED}{Style.BRIGHT}Type: {code_type}{Style.RESET_ALL}"
                 class_display = f"{Fore.RED}{Style.BRIGHT}Class: {airspace_class}{Style.RESET_ALL}"
                 warning = f" {Fore.RED}{Style.BRIGHT}*** CRITICAL AIRSPACE ***{Style.RESET_ALL}"
+            elif is_red_zone:
+                # Fallback without colors
+                name_display = airspace['name']
+                type_display = f"Type: {code_type}"
+                class_display = f"Class: {airspace_class}"
+                warning = " *** CRITICAL AIRSPACE ***"
             else:
                 name_display = airspace['name']
                 type_display = f"Type: {code_type}"
@@ -444,20 +459,36 @@ def cmd_list_profile(args):
         
         print("=" * 80)
         
-        # Add red zone warning summary
-        if red_zone_count > 0 and COLORS_AVAILABLE:
-            print(f"{Fore.RED}{Style.BRIGHT}⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!{Style.RESET_ALL}")
-            print(f"{Fore.RED}These airspaces may require special authorization or are prohibited:{Style.RESET_ALL}")
-            print(f"{Fore.RED}• Class A: IFR clearance required{Style.RESET_ALL}")
-            print(f"{Fore.RED}• P (Prohibited): Flight prohibited{Style.RESET_ALL}")
-            print(f"{Fore.RED}• R (Restricted): Flight restrictions apply{Style.RESET_ALL}")
+        # Add red zone warning summary with specific airspace list
+        if red_zone_count > 0:
+            if COLORS_AVAILABLE:
+                print(f"{Fore.RED}{Style.BRIGHT}⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!{Style.RESET_ALL}")
+                print(f"{Fore.RED}These airspaces may require special authorization or are prohibited:{Style.RESET_ALL}")
+            else:
+                print(f"⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!")
+                print("These airspaces may require special authorization or are prohibited:")
+            
+            # List the specific critical airspaces
+            for idx, critical in enumerate(critical_airspaces, 1):
+                if critical['type'] == 'R':
+                    reason = "Restricted Area - Flight restrictions apply"
+                elif critical['type'] == 'P':
+                    reason = "Prohibited Area - Flight prohibited"
+                elif critical['class'] == 'A':
+                    reason = "Class A Airspace - IFR clearance required"
+                else:
+                    reason = "Critical airspace"
+                
+                if COLORS_AVAILABLE:
+                    print(f"{Fore.RED}  {idx}. {critical['name']} ({critical['code_id']}) - {reason}{Style.RESET_ALL}")
+                else:
+                    print(f"  {idx}. {critical['name']} ({critical['code_id']}) - {reason}")
+            
             print()
-        elif red_zone_count > 0:
-            print(f"⚠️  WARNING: {red_zone_count} CRITICAL AIRSPACE CROSSING(S) DETECTED!")
-            print("These airspaces may require special authorization or are prohibited:")
-            print("• Class A: IFR clearance required")
-            print("• P (Prohibited): Flight prohibited") 
-            print("• R (Restricted): Flight restrictions apply")
+            if COLORS_AVAILABLE:
+                print(f"{Fore.RED}Review flight plan carefully - these zones require special attention!{Style.RESET_ALL}")
+            else:
+                print("Review flight plan carefully - these zones require special attention!")
             print()
         
         if filter_types and filtered_count > 0:
