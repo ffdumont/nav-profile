@@ -84,9 +84,23 @@ dir /b "NavPro_Distribution"
 echo.
 echo Location: %cd%\NavPro_Distribution
 echo.
+
+REM Prompt for version number and create ZIP
+set /p VERSION="Enter version number (e.g., 1.1.1): "
+if not "%VERSION%"=="" (
+    echo Creating ZIP archive...
+    powershell "Compress-Archive -Path 'NavPro_Distribution\*' -DestinationPath '..\releases\NavPro_v%VERSION%.zip' -Force"
+    if exist "..\releases\NavPro_v%VERSION%.zip" (
+        echo ✓ ZIP archive created: ..\releases\NavPro_v%VERSION%.zip
+    ) else (
+        echo ❌ Failed to create ZIP archive
+    )
+    echo.
+)
+
 echo To distribute:
-echo 1. Zip the entire NavPro_Distribution folder
-echo 2. Share with users
+echo 1. Share the ZIP file: NavPro_v%VERSION%.zip
+echo 2. Or share the NavPro_Distribution folder
 echo 3. Users run NavPro.exe or Launch_NavPro.bat
 echo.
 echo Prerequisites for users:
