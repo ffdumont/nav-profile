@@ -88,7 +88,7 @@
 
 ## Installation & Usage
 
-1. **Download**: `NavPro_v1.1.0_Windows_Colorized.zip`
+1. **Download**: `NavPro_v1.1.0.zip`
 2. **Extract** to desired location
 3. **Run** `NavPro.exe` or `Launch_NavPro.bat`
 4. **Enjoy** the new colorized interface!
