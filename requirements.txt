@@ -1,0 +1,23 @@
+# Dépendances Python pour NavPro
+
+# Interface graphique
+tkinter  # Inclus avec Python
+
+# Traitement de données scientifiques  
+numpy>=1.21.0
+matplotlib>=3.5.0
+
+# Requêtes HTTP pour APIs d'élévation
+requests>=2.25.0
+
+# Traitement XML pour fichiers KML et AIXM
+# xml.etree.ElementTree est inclus dans la bibliothèque standard
+
+# Traitement des géométries spatiales
+# math, typing sont inclus dans la bibliothèque standard
+
+# Base de données SQLite (pour airspaces.db)
+# sqlite3 est inclus dans la bibliothèque standard
+
+# Utilitaires systèmes
+# os, sys, argparse, pathlib sont inclus dans la bibliothèque standard

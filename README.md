@@ -1,52 +1,51 @@
-# 🛩️ Nav Profile - Flight Path Airspace Analyzer
+# 🛩️ Nav Profile - Flight Path Analysis Suite
 
-A comprehensive Windows desktop application for analyzing KML flight paths against French airspace data, providing detailed corridor-based airspace intersection analysis with an intuitive GUI interface.
+A comprehensive suite of tools for analyzing KML flight paths against French airspace data, with both navigation analysis and altitude profile correction capabilities.
 
-## 📥 Download & Installation
+## � Project Structure
 
-### For Windows Users (Recommended)
-1. **Download**: Get the latest release from [Releases](../../releases/latest)
-2. **Extract**: Unzip `NavPro_v1.0.0_Windows.zip` to any folder
-3. **Run**: Double-click `NavPro.exe` or use `Launch_NavPro.bat`
-4. **No Python Required**: Standalone executable with all dependencies included
+```
+nav-profile/
+├── 🛩️ NavPro Core Application
+│   ├── navpro.py           # Command-line version
+│   ├── navpro_gui.py       # Windows GUI application
+│   ├── core/               # Flight analysis engine
+│   ├── data_processing/    # AIXM data processing
+│   └── visualization/      # KML generation
+│
+├── ✈️ Altitude Correction Tools
+│   └── altitude-correction/
+│       ├── kml_altitude_corrector.py  # Main altitude corrector
+│       ├── kml_altitude_viewer.py     # Graphical profile viewer
+│       ├── aviation_utils.py          # Aviation utilities & APIs
+│       └── kml_analyzer.py            # Profile analysis tools
+│
+├── 📦 Distribution & Build
+│   └── distribution/
+│       ├── build_scripts/    # Build automation
+│       ├── releases/         # Release packages
+│       └── dist/, build/     # Build artifacts
+│
+└── 📚 Documentation
+    └── docs/                 # Project documentation
+```
 
-### System Requirements
-- Windows 10/11 (64-bit)
-- 50MB free disk space
-- Optional: Google Earth Pro for KML visualization
+## � Quick Start
 
-## ✨ Features
+### NavPro Airspace Analysis
+1. **Download**: Get the latest Windows release from `distribution/releases/`
+2. **Extract**: Unzip to any folder  
+3. **Run**: Double-click `NavPro.exe` or use GUI with `python navpro_gui.py`
 
-### 🖥️ Windows GUI Application
-- **User-Friendly Interface**: No command line required - clean tkinter desktop application
-- **File Browsing**: Easy selection of AIXM XML files and KML flight paths
-- **Real-Time Output**: Live analysis results displayed in scrollable text area
-- **Google Earth Integration**: Automatic launching with generated visualization KMLs
+### Altitude Profile Correction
+```bash
+# Correct SDVFR altitude profiles
+cd altitude-correction
+python kml_altitude_corrector.py input.kml -o corrected.kml
 
-### 🛩️ Flight Analysis Engine  
-- **3D Spatial Indexing**: High-performance STRtree-based airspace queries (O(log n))
-- **Corridor Analysis**: Configurable 3D corridor around flight path (±height, ±width)
-- **Flight Trace Support**: Handle both routes (waypoints) and traces (GPS tracks)
-- **Critical Airspace Warnings**: Red highlighting for Class A, Prohibited (P), and Restricted (R) zones
-- **Comprehensive Reports**: Categorized airspace analysis with detailed explanations
-
-### 📊 Professional Output
-- **Organized KML Generation**: Airspace folders by type for Google Earth visibility
-- **Multiple Formats**: GUI display + KML export with professional styling
-- **Safety Warnings**: Clear identification of critical airspace crossings
-
-## 🚀 Quick Start
-
-### Using the GUI Application
-
-1. **Launch**: Run `NavPro.exe` (GUI opens automatically)
-2. **Select AIXM File**: Browse and select your AIXM XML airspace database
-3. **Select Flight Path**: Choose your KML flight trace or route file
-4. **Configure Corridor**: Set height (feet) and width (nautical miles) 
-5. **Analyze**: Click "List Airspace Crossings" for detailed report
-6. **Visualize**: Click "Generate KML" to create Google Earth visualization
-
-![NavPro GUI Screenshot](docs/screenshot.png)
+# Visualize altitude profiles  
+python kml_altitude_viewer.py corrected.kml
+```
 
 ### Command Line (Advanced Users)
 

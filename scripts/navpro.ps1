@@ -78,7 +78,7 @@ function Show-CommandHelp {
         $pythonArgs += $CommandName
     }
     
-    & python.exe navpro.py @pythonArgs
+    & python.exe ..\navpro\navpro.py @pythonArgs
 }
 
 # Show help if no command or -Help specified
@@ -139,7 +139,7 @@ if ($Quiet) { $pythonArgs += "--quiet" }
 
 # Execute Python script
 try {
-    & python.exe navpro.py @pythonArgs
+    & python.exe ..\navpro\navpro.py @pythonArgs
     exit $LASTEXITCODE
 } catch {
     Write-Error "Failed to execute NavPro: $_"
