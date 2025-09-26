@@ -509,27 +509,32 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         return ET.tostring(kml, encoding='unicode')
 
     def _add_flight_path_to_kml(self, document: ET.Element, flight_coordinates: List[tuple], flight_name: str):
-        """Add flight path LineString to KML document"""
-        # Create flight path placemark
-        placemark = ET.SubElement(document, 'Placemark')
+        """Add flight path LineString and waypoints to KML document with corrected KML styling"""
+        
+        # Add styles first (yellow line and waypoint styles)
+        self._add_flight_path_styles(document)
+        
+        # Create flight path folder
+        flight_folder = ET.SubElement(document, 'Folder')
+        folder_name = ET.SubElement(flight_folder, 'name')
+        folder_name.text = f"✈️ {flight_name} Route"
+        folder_desc = ET.SubElement(flight_folder, 'description')
+        folder_desc.text = f"Flight route with {len(flight_coordinates)} waypoints"
+        
+        # Create flight path placemark (yellow line)
+        placemark = ET.SubElement(flight_folder, 'Placemark')
         
         # Name
         name = ET.SubElement(placemark, 'name')
-        name.text = f"✈️ {flight_name} Route"
+        name.text = flight_name
         
         # Description
         desc = ET.SubElement(placemark, 'description')
-        desc.text = f"Flight path with {len(flight_coordinates)} waypoints"
+        desc.text = "Flight route"
         
-        # Style for flight path
-        style = ET.SubElement(placemark, 'Style')
-        line_style = ET.SubElement(style, 'LineStyle')
-        
-        # Red line, 3px width
-        color = ET.SubElement(line_style, 'color')
-        color.text = "ff0000ff"  # Red in KML AABBGGRR format
-        width = ET.SubElement(line_style, 'width')
-        width.text = "3"
+        # Use yellow line style
+        style_url = ET.SubElement(placemark, 'styleUrl')
+        style_url.text = "#msn_ylw-line"
         
         # Create LineString geometry
         linestring = ET.SubElement(placemark, 'LineString')
@@ -548,7 +553,53 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
             alt_m = alt_ft / 3.28084
             coord_strings.append(f"{lon},{lat},{alt_m}")
         
-        coordinates.text = "\n        " + "\n        ".join(coord_strings) + "\n      "
+        coordinates.text = " ".join(coord_strings)
+        
+        # Add waypoint placemarks
+        for i, (lon, lat, alt_ft) in enumerate(flight_coordinates):
+            waypoint_placemark = ET.SubElement(flight_folder, 'Placemark')
+            
+            # Use generic waypoint names (WP01, WP02, etc.)
+            wp_name = ET.SubElement(waypoint_placemark, 'name')
+            wp_name.text = f"WP{i+1:02d}"
+            
+            wp_desc = ET.SubElement(waypoint_placemark, 'description')
+            wp_desc.text = f"Waypoint {i+1} - {int(alt_ft)} ft"
+            
+            # Use yellow pushpin style
+            wp_style_url = ET.SubElement(waypoint_placemark, 'styleUrl')
+            wp_style_url.text = "#msn_ylw-pushpin"
+            
+            # Create Point geometry
+            point = ET.SubElement(waypoint_placemark, 'Point')
+            point_extrude = ET.SubElement(point, 'extrude')
+            point_extrude.text = "1"
+            point_alt_mode = ET.SubElement(point, 'altitudeMode')
+            point_alt_mode.text = "absolute"
+            
+            point_coords = ET.SubElement(point, 'coordinates')
+            alt_m = alt_ft / 3.28084
+            point_coords.text = f"{lon},{lat},{alt_m}"
+    
+    def _add_flight_path_styles(self, document: ET.Element):
+        """Add yellow line and pushpin styles for flight path"""
+        # Yellow line style
+        line_style = ET.SubElement(document, 'Style', id="msn_ylw-line")
+        line_style_line = ET.SubElement(line_style, 'LineStyle')
+        line_color = ET.SubElement(line_style_line, 'color')
+        line_color.text = "ff00ffff"  # Yellow in KML AABBGGRR format
+        line_width = ET.SubElement(line_style_line, 'width')
+        line_width.text = "3"
+        
+        # Yellow pushpin style  
+        pushpin_style = ET.SubElement(document, 'Style', id="msn_ylw-pushpin")
+        pushpin_icon_style = ET.SubElement(pushpin_style, 'IconStyle')
+        pushpin_scale = ET.SubElement(pushpin_icon_style, 'scale')
+        pushpin_scale.text = "1.1"
+        pushpin_icon = ET.SubElement(pushpin_icon_style, 'Icon')
+        pushpin_href = ET.SubElement(pushpin_icon, 'href')
+        pushpin_href.text = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
+        pushpin_hotspot = ET.SubElement(pushpin_icon_style, 'hotSpot', x="20", y="2", xunits="pixels", yunits="pixels")
 
     def save_airspace_kml(self, airspace_id: int, output_path: str) -> str:
         """Generate and save KML file for an airspace"""
