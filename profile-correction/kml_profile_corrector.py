@@ -231,9 +231,25 @@ class KMLProfileCorrector:
             # Branch target altitude is the altitude of the first point (start_point's original altitude)
             target_altitude = start_point.altitude
             
-            # For the last branch, target altitude is the arrival altitude (field elevation + 1000 ft)
+            # For the last branch, handle descent to destination differently
             if i == len(points) - 2:  # Last branch
-                target_altitude = arrival_altitude
+                # Always need to consider descent to arrival altitude for final approach
+                altitude_diff_ft = UnitConverter.meters_to_feet(current_altitude - arrival_altitude)
+                if altitude_diff_ft > 50:  # Need descent
+                    # Calculate distance needed for descent
+                    time_needed_min = altitude_diff_ft / self.descent_rate_fpm
+                    distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
+                    
+                    if distance_needed_nm >= distance_nm:
+                        # Not enough distance - descend from start of branch
+                        target_altitude = arrival_altitude
+                    else:
+                        # Keep current altitude for most of the branch, descent point will be calculated later
+                        # This signals that we need special final approach descent handling
+                        target_altitude = current_altitude  # This will trigger LEVEL, but special logic will override
+                else:
+                    # Already at or below destination altitude
+                    target_altitude = arrival_altitude
             
             # Calculate distance
             distance_nm = self.calculate_distance_nm(start_point, end_point)
@@ -264,33 +280,67 @@ class KMLProfileCorrector:
             # Store starting altitude for display purposes
             branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
             
+            # Special handling for final approach - check if we need descent to arrival altitude
+            if i == len(points) - 2 and action == "LEVEL":  # Final branch initially set to LEVEL
+                final_altitude_diff_ft = UnitConverter.meters_to_feet(current_altitude - arrival_altitude)
+                if final_altitude_diff_ft > 50:  # Need descent
+                    final_time_needed_min = final_altitude_diff_ft / self.descent_rate_fpm
+                    final_distance_needed_nm = (self.ground_speed_kts / 60) * final_time_needed_min
+                    
+                    if final_distance_needed_nm < distance_nm:
+                        # Calculate descent start point (from end of branch backwards)
+                        descent_start_fraction = 1.0 - (final_distance_needed_nm / distance_nm)
+                        descent_start_lon, descent_start_lat = self.interpolate_point(start_point, end_point, descent_start_fraction)
+                        # The descent point is where we START descending (at current altitude)
+                        branch.end_of_action_point = (descent_start_lon, descent_start_lat, current_altitude)
+                        
+                        # Update branch info for final approach descent
+                        branch.action = "DESCENT"
+                        branch.altitude_change_ft = -final_altitude_diff_ft
+                        branch.target_altitude = arrival_altitude
+                        action = "DESCENT"  # Update local action variable
+                        altitude_change_ft = -final_altitude_diff_ft
+                    else:
+                        # Not enough distance for proper descent - descend from start
+                        branch.action = "DESCENT"
+                        branch.altitude_change_ft = -final_altitude_diff_ft
+                        branch.target_altitude = arrival_altitude
+                        action = "DESCENT"  # Update local action variable
+                        altitude_change_ft = -final_altitude_diff_ft
+            
             # Calculate end of climb/descent point if needed
             if action in ["CLIMB", "DESCENT"]:
                 rate_fpm = self.climb_rate_fpm if action == "CLIMB" else self.descent_rate_fpm
                 time_needed_min = abs(altitude_change_ft) / rate_fpm
                 distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
                 
-                # Check if altitude change is achievable within the branch distance
-                if distance_needed_nm >= distance_nm:
-                    # Unreachable - not enough distance
-                    branch.is_unreachable = True
-                    achievable_change_ft = (distance_nm / (self.ground_speed_kts / 60)) * rate_fpm
-                    if action == "CLIMB":
-                        achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) + achievable_change_ft
-                        branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
+                # Skip if already handled by final approach logic above
+                if not (hasattr(branch, 'end_of_action_point') and branch.end_of_action_point):
+                    if distance_needed_nm >= distance_nm:
+                        # Check if altitude change is achievable within the branch distance
+                        # Unreachable - not enough distance
+                        branch.is_unreachable = True
+                        achievable_change_ft = (distance_nm / (self.ground_speed_kts / 60)) * rate_fpm
+                        if action == "CLIMB":
+                            achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) + achievable_change_ft
+                            branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
+                        else:
+                            achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) - achievable_change_ft
+                            branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
                     else:
-                        achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) - achievable_change_ft
-                        branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
-                else:
-                    # Calculate position where climb/descent ends
-                    fraction = distance_needed_nm / distance_nm
-                    end_lon, end_lat = self.interpolate_point(start_point, end_point, fraction)
-                    branch.end_of_action_point = (end_lon, end_lat, target_altitude)
+                        # Calculate position where climb/descent ends
+                        fraction = distance_needed_nm / distance_nm
+                        end_lon, end_lat = self.interpolate_point(start_point, end_point, fraction)
+                        branch.end_of_action_point = (end_lon, end_lat, target_altitude)
             
             branches.append(branch)
             
             # Update current altitude for next branch
-            current_altitude = target_altitude
+            # For final approach with descent point, use arrival altitude
+            if i == len(points) - 2 and branch.action == "DESCENT" and hasattr(branch, 'end_of_action_point'):
+                current_altitude = arrival_altitude
+            else:
+                current_altitude = branch.target_altitude
         
         return branches
     
@@ -319,6 +369,172 @@ class KMLProfileCorrector:
             print("   Consider adjusting climb/descent rates or reviewing the flight profile.")
         print(f"{'='*80}")
     
+    def generate_corrected_kml_points(self, points: List[KMLPoint], branches: List[Branch], ground_elevations: Dict[str, float]) -> List[Tuple[str, float, float, float]]:
+        """
+        Generate corrected KML points with intermediate climb/descent points
+        
+        Returns:
+            List of tuples (name, longitude, latitude, altitude_in_meters) for corrected KML
+        """
+        corrected_points = []
+        
+        if len(points) < 2:
+            return [(p.name, p.longitude, p.latitude, p.altitude) for p in points]
+        
+        # Set corrected altitudes for departure and arrival points
+        departure_elevation = ground_elevations.get(points[0].name, UnitConverter.feet_to_meters(500))
+        departure_altitude = departure_elevation + UnitConverter.feet_to_meters(1000)
+        
+        arrival_elevation = ground_elevations.get(points[-1].name, UnitConverter.feet_to_meters(500))
+        arrival_altitude = arrival_elevation + UnitConverter.feet_to_meters(1000)
+        
+        # Track current altitude as we progress
+        current_altitude = departure_altitude
+        
+        # Process each branch and add corrected points in proper sequence
+        for i, branch in enumerate(branches):
+            # Add the start point with corrected altitude
+            if i == 0:  # First point - departure altitude
+                corrected_points.append((branch.start_point.name, branch.start_point.longitude, 
+                                       branch.start_point.latitude, departure_altitude))
+                current_altitude = departure_altitude
+            else:
+                # Use the target altitude from the previous branch (already added as end point)
+                pass
+            
+            # Add climb/descent end point if needed (intermediate point during the branch)
+            if branch.end_of_action_point and not branch.is_unreachable:
+                lon, lat, alt = branch.end_of_action_point
+                alt_ft = int(UnitConverter.meters_to_feet(alt))
+                
+                # Special naming for final approach descent
+                if i == len(branches) - 1 and branch.action == "DESCENT":
+                    # Final segment: Descent_<level_in_ft>_<waypoint_name> (to destination)
+                    action_name = f"Descent_{alt_ft}_{branch.end_point.name}"
+                else:
+                    # Regular segments: Climb_<waypoint_name>_<level_in_ft> or Descent_<waypoint_name>_<level_in_ft>
+                    # Use start_point name (where the action happens)
+                    target_alt_ft = int(UnitConverter.meters_to_feet(branch.target_altitude))
+                    action_name = f"{branch.action.title()}_{branch.start_point.name}_{target_alt_ft}"
+                
+                corrected_points.append((action_name, lon, lat, alt))
+            
+            # Add the end point of the branch with target altitude
+            # (except for the last branch - we'll handle that separately)
+            if i < len(branches) - 1:
+                corrected_points.append((branch.end_point.name, branch.end_point.longitude,
+                                       branch.end_point.latitude, branch.target_altitude))
+            
+            # Update current altitude for next iteration
+            current_altitude = branch.target_altitude
+        
+        # Add final point with arrival altitude
+        final_point = points[-1]
+        corrected_points.append((final_point.name, final_point.longitude, 
+                               final_point.latitude, arrival_altitude))
+        
+        return corrected_points
+    
+    def generate_corrected_kml(self, original_content: str, corrected_points: List[Tuple[str, float, float, float]]) -> str:
+        """
+        Generate corrected KML content with new altitude profile
+        
+        Args:
+            original_content: Original KML file content
+            corrected_points: List of (name, lon, lat, alt) tuples
+            
+        Returns:
+            Corrected KML content as string
+        """
+        # Generate new coordinates string for the navigation line
+        coords_list = []
+        for name, lon, lat, alt in corrected_points:
+            coords_list.append(f"{lon},{lat},{alt}")
+        
+        new_coordinates_string = ",".join(coords_list)
+        
+        # Replace the coordinates in the LineString (navigation path)
+        coord_pattern = r'<coordinates>[^<]*</coordinates>'
+        corrected_content = re.sub(coord_pattern, f'<coordinates>{new_coordinates_string}</coordinates>', 
+                                 original_content, count=1)
+        
+        # Find the Points folder and replace its content entirely
+        points_folder_pattern = r'(<Folder>\s*<name>Points</name>.*?)(</Folder>)'
+        
+        if re.search(points_folder_pattern, corrected_content, re.DOTALL):
+            # Create new placemarks in correct flight sequence order
+            new_placemarks = []
+            for i, (name, lon, lat, alt) in enumerate(corrected_points):
+                if name.startswith(("Climb_", "Descent_")):
+                    visibility = "0"  # Hidden by default
+                    description = "Climb point" if name.startswith("Climb_") else "Descent point"
+                    style = "#msn_grn-pushpin" if name.startswith("Climb_") else "#msn_red-pushpin"
+                else:
+                    visibility = "1"  # Visible by default for main waypoints
+                    description = f"Waypoint {i+1}"
+                    style = "#msn_ylw-pushpin"
+                    
+                placemark_xml = f'''        <Placemark>
+            <name>{name}</name>
+            <visibility>{visibility}</visibility>
+            <description>{description}</description>
+            <styleUrl>{style}</styleUrl>
+            <Point>
+                <extrude>1</extrude>
+                <altitudeMode>absolute</altitudeMode>
+                <gx:drawOrder>1</gx:drawOrder>
+                <coordinates>{lon},{lat},{alt},</coordinates>
+            </Point>
+        </Placemark>'''
+                new_placemarks.append(placemark_xml)
+            
+            # Replace the entire Points folder content
+            folder_content = f'''    <Folder>
+        <name>Points</name>
+{chr(10).join(new_placemarks)}
+    </Folder>'''
+            
+            corrected_content = re.sub(points_folder_pattern, folder_content, corrected_content, flags=re.DOTALL)
+        else:
+            # Fallback: update existing placemarks and add new ones
+            # Update individual placemark coordinates for main waypoints
+            for name, lon, lat, alt in corrected_points:
+                if not name.startswith(("Climb_", "Descent_")):  # Only update main waypoints
+                    # Pattern to find and update placemark coordinates
+                    placemark_pattern = rf'(<Placemark>.*?<name>{re.escape(name)}</name>.*?<coordinates>)[^<]*(</coordinates>.*?</Placemark>)'
+                    replacement = rf'\g<1>{lon},{lat},{alt},\g<2>'
+                    corrected_content = re.sub(placemark_pattern, replacement, corrected_content, flags=re.DOTALL)
+            
+            # Add new placemarks for climb/descent end points
+            new_placemarks = []
+            for name, lon, lat, alt in corrected_points:
+                if name.startswith(("Climb_", "Descent_")):
+                    visibility = "0"  # Hidden by default
+                    description = "Climb point" if name.startswith("Climb_") else "Descent point"
+                    style = "#msn_grn-pushpin" if name.startswith("Climb_") else "#msn_red-pushpin"
+                    
+                    placemark_xml = f'''    <Placemark>
+        <name>{name}</name>
+        <visibility>{visibility}</visibility>
+        <description>{description}</description>
+        <styleUrl>{style}</styleUrl>
+        <Point>
+            <extrude>1</extrude>
+            <altitudeMode>absolute</altitudeMode>
+            <gx:drawOrder>1</gx:drawOrder>
+            <coordinates>{lon},{lat},{alt},</coordinates>
+        </Point>
+    </Placemark>'''
+                    new_placemarks.append(placemark_xml)
+            
+            # Insert new placemarks before the closing Document tag
+            if new_placemarks:
+                placemarks_text = "\n".join(new_placemarks)
+                document_end_pattern = r'(</Document>)'
+                corrected_content = re.sub(document_end_pattern, placemarks_text + r'\n\g<1>', corrected_content)
+        
+        return corrected_content
+    
     def correct_kml_file(self, input_file: str, output_file: str):
         """Main function to correct a KML file with the profile correction algorithm"""
         print(f"Processing KML file: {input_file}")
@@ -346,9 +562,35 @@ class KMLProfileCorrector:
         # Print analysis table
         self.print_branch_analysis_table(branches)
         
-        # TODO: Generate corrected KML content (to be implemented)
-        print(f"\nNote: KML generation not yet implemented in this redesign.")
-        print(f"This is the profile analysis.")
+        # Generate corrected KML points
+        print("\nGenerating corrected profile points...")
+        corrected_points = self.generate_corrected_kml_points(points, branches, ground_elevations)
+        
+        print(f"Generated {len(corrected_points)} corrected points:")
+        for name, lon, lat, alt in corrected_points:
+            print(f"  {name}: {UnitConverter.format_altitude(alt)}")
+        
+        # Generate corrected KML content
+        print(f"\nGenerating corrected KML file...")
+        corrected_content = self.generate_corrected_kml(original_content, corrected_points)
+        
+        # Ensure output directory exists
+        import os
+        output_dir = os.path.dirname(output_file)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            print(f"Created directory: {output_dir}")
+        
+        # Save corrected KML file
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(corrected_content)
+            print(f"✅ Corrected KML file saved: {output_file}")
+            print(f"   Use kml_profile_viewer.py to visualize the corrected profile.")
+        except Exception as e:
+            print(f"❌ Error saving corrected KML file: {e}")
+            print(f"   Attempted to save to: {output_file}")
+            raise
 
 
 def main():
