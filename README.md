@@ -1,5 +1,10 @@
 # 🛩️ Nav-Profile - Professional Aviation Navigation Suite
 
+⚠️ **IMPORTANT AVIATION SAFETY DISCLAIMER** ⚠️
+> **FOR EDUCATIONAL AND FLIGHT PLANNING PURPOSES ONLY**
+> 
+> This software is NOT certified for use in actual flight operations. All information must be verified with official aeronautical publications and current NOTAMs before flight. The developers assume no responsibility for navigation decisions made using this software. Always comply with applicable aviation regulations and maintain proper flight planning procedures.
+
 A comprehensive suite of aviation navigation tools for analyzing KML flight paths against French airspace data, with flight profile correction capabilities and professional Windows desktop application.
 
 Suite complète d'outils de navigation aéronautique pour l'analyse de fichiers KML de vol contre les données d'espace aérien français, avec correction de profil de vol et application Windows professionnelle.

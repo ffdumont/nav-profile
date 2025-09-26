@@ -78,6 +78,13 @@ class NavProGUI:
         self.clear_output_with_header("NAVPRO - PROFILE CORRECTOR & AIRSPACE ANALYZER")
         self.log_info("Welcome to NavPro! 🛩️")
         self.log_output("")
+        
+        # Aviation Safety Disclaimer
+        self.log_warning("⚠️ AVIATION SAFETY DISCLAIMER:")
+        self.log_warning("   FOR EDUCATIONAL AND FLIGHT PLANNING PURPOSES ONLY")
+        self.log_warning("   Always verify with official aeronautical publications before flight!")
+        self.log_output("")
+        
         self.log_output("Features:", "header")
         self.log_success("✅ Automatic flight profile correction with realistic altitudes")
         self.log_success("✅ Airspace crossing analysis with visual warnings")  
