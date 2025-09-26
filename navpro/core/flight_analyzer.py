@@ -30,7 +30,7 @@ class FlightProfileAnalyzer:
         self.engine = FixedAirspaceQueryEngine(db_path)
         
     def get_chronological_crossings(self, kml_path: str, sample_distance_km: float = 5.0) -> List[Dict]:
-        """Get airspaces crossed chronologically along flight path"""
+        """Get airspaces crossed chronologically along flight path with proper crossing detection"""
         # Parse flight path
         waypoints = KMLFlightPathParser.parse_kml_coordinates(kml_path)
         if not waypoints:
@@ -51,21 +51,29 @@ class FlightProfileAnalyzer:
             # For route files, interpolate between waypoints as before
             interpolated_points = interpolate_flight_path(waypoints, sample_distance_km)
         
-        # Generate corridor points (same as original analyzer)
+        # Phase 1: Discovery - Use corridor to find all potentially relevant airspaces
         corridor_points = self._generate_corridor_points(interpolated_points)
+        discovered_airspaces = {}
         
-        # Track first occurrence of each airspace along the flight path
+        # Test each corridor point to discover airspaces
+        for i, (lon, lat, alt) in enumerate(corridor_points):
+            airspaces = self.engine.query_airspaces_for_point(lon, lat, alt)
+            for airspace in airspaces:
+                airspace_id = airspace['id']
+                if airspace_id not in discovered_airspaces:
+                    discovered_airspaces[airspace_id] = airspace
+        
+        # Phase 2: Actual crossing detection - Check only nominal flight path
         first_crossings = {}
         
-        # Test each corridor point and record first encounter  
-        for i, (lon, lat, alt) in enumerate(corridor_points):
-            # Calculate distance along flight path (approximate)
-            flight_progress = i / len(corridor_points)
+        # Test only the original flight path points (not corridor offsets)
+        for i, (lon, lat, alt) in enumerate(interpolated_points):
+            flight_progress = i / len(interpolated_points) if len(interpolated_points) > 1 else 0
             
-            # Find airspaces at this point
+            # Check which discovered airspaces are actually crossed by the nominal path
             airspaces = self.engine.query_airspaces_for_point(lon, lat, alt)
             
-            # Record first encounter of each airspace
+            # Record first encounter along nominal path
             for airspace in airspaces:
                 airspace_id = airspace['id']
                 if airspace_id not in first_crossings:
@@ -78,12 +86,25 @@ class FlightProfileAnalyzer:
                     else:
                         estimated_distance = 0.0
                         
+                    # Mark whether this is a nominal path crossing or just corridor-discovered
                     first_crossings[airspace_id] = {
                         'airspace': airspace,
                         'crossing_point': (lon, lat, alt),
                         'distance_km': estimated_distance,
-                        'segment_index': i
+                        'segment_index': i,
+                        'is_actual_crossing': True  # This is from nominal path
                     }
+        
+        # Add corridor-only discoveries (not actual crossings) for completeness
+        for airspace_id, airspace in discovered_airspaces.items():
+            if airspace_id not in first_crossings:
+                first_crossings[airspace_id] = {
+                    'airspace': airspace,
+                    'crossing_point': None,  # No actual crossing point
+                    'distance_km': 0.0,  # Approximate
+                    'segment_index': 999999,  # Sort to end
+                    'is_actual_crossing': False  # Only discovered via corridor
+                }
         
         # Sort by segment index to maintain chronological order
         crossings = list(first_crossings.values())

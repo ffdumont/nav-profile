@@ -39,10 +39,13 @@ def create_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  navpro list --fix-profile flight.kml                # Fix profile and analyze corrected airspace crossings
+  navpro generate --fix-profile flight.kml            # Fix profile and generate KML for corrected crossings
+  
   navpro list --name "CHEVREUSE"                    # List airspaces matching pattern
   navpro list --profile flight.kml                  # List relevant airspaces crossed (filtered)
   navpro list --profile flight.kml --filter-types ""     # List ALL airspaces crossed (no filter)
-  navpro list --profile flight.kml --corridor-height 2000 # Custom corridor ±2000ft
+  navpro list --profile flight.kml --corridor-height 1000 # Custom corridor ±1000ft
   navpro list --id 4749                             # Show details for specific ID
   navpro list --all                                 # List all airspaces (limited)
   
@@ -56,6 +59,7 @@ Examples:
   navpro help                              # Show detailed help
 
 NavPro provides professional navigation services including:
+- Altitude profile correction with realistic climb/descent rates
 - Airspace search and listing with flight path analysis
 - 3D KML volume visualization  
 - Flight path airspace crossing analysis with 3D corridors
@@ -111,6 +115,10 @@ NavPro provides professional navigation services including:
         help='Analyze KML flight path and list airspaces chronologically crossed'
     )
     list_parser.add_argument(
+        '--fix-profile', type=str,
+        help='Fix KML profile by applying altitude correction, then analyze corrected airspace crossings'
+    )
+    list_parser.add_argument(
         '--limit', '-l', type=int, default=50,
         help='Limit number of results (default: 50)'
     )
@@ -119,12 +127,12 @@ NavPro provides professional navigation services including:
         help='Show compact summary format'
     )
     list_parser.add_argument(
-        '--corridor-height', type=int, default=1000,
-        help='Vertical corridor height in feet (±altitude, default: 1000) - used with --profile'
+        '--corridor-height', type=int, default=500,
+        help='Vertical corridor height in feet (±altitude, default: 500) - used with --profile'
     )
     list_parser.add_argument(
-        '--corridor-width', type=float, default=10.0,
-        help='Horizontal corridor width in nautical miles (±track, default: 10.0) - used with --profile'
+        '--corridor-width', type=float, default=5.0,
+        help='Horizontal corridor width in nautical miles (±track, default: 5.0) - used with --profile'
     )
     list_parser.add_argument(
         '--database', type=str, default='data/airspaces.db',
@@ -164,6 +172,10 @@ NavPro provides professional navigation services including:
         help='Analyze KML flight path and generate KML volumes for airspaces crossed'
     )
     gen_parser.add_argument(
+        '--fix-profile', type=str,
+        help='Fix KML profile by applying altitude correction, then generate KML volumes for corrected crossings'
+    )
+    gen_parser.add_argument(
         '--output', '-o', type=str,
         help='Output filename (default: auto-generated)'
     )
@@ -180,12 +192,12 @@ NavPro provides professional navigation services including:
         help='Generate only combined file for multiple airspaces'
     )
     gen_parser.add_argument(
-        '--corridor-height', type=int, default=1000,
-        help='Vertical corridor height in feet (±altitude, default: 1000) - used with --profile'
+        '--corridor-height', type=int, default=500,
+        help='Vertical corridor height in feet (±altitude, default: 500) - used with --profile'
     )
     gen_parser.add_argument(
-        '--corridor-width', type=float, default=10.0,
-        help='Horizontal corridor width in nautical miles (±track, default: 10.0) - used with --profile'
+        '--corridor-width', type=float, default=5.0,
+        help='Horizontal corridor width in nautical miles (±track, default: 5.0) - used with --profile'
     )
     gen_parser.add_argument(
         '--database', type=str, default='data/airspaces.db',
@@ -223,6 +235,15 @@ NavPro provides professional navigation services including:
 
 def cmd_list(args, kml_service):
     """Handle list subcommand"""
+    
+    # Check if --fix-profile option is used
+    if args.fix_profile:
+        corrected_profile_file = cmd_fix_profile_for_subcommand(args, args.fix_profile)
+        if corrected_profile_file:
+            # Update args.profile to use the corrected profile
+            args.profile = corrected_profile_file
+        else:
+            return
     
     # Check if --profile option is used
     if args.profile:
@@ -332,6 +353,73 @@ def cmd_list(args, kml_service):
             print()
 
 
+def cmd_fix_profile_for_subcommand(args, kml_file):
+    """Handle --fix-profile option for profile correction and visualization within subcommands"""
+    import sys
+    import os
+    from pathlib import Path
+    
+    # Add profile-correction module to path
+    sys.path.append(str(Path(__file__).parent.parent / "profile-correction"))
+    
+    try:
+        from kml_profile_corrector import KMLProfileCorrector
+        from kml_profile_viewer import KMLProfileViewer
+    except ImportError as e:
+        print(f"❌ Error importing profile correction modules: {e}")
+        print("   Make sure the altitude-correction modules are available")
+        return None
+    
+    kml_file = kml_file
+    if not os.path.exists(kml_file):
+        print(f"❌ Error: KML file not found: {kml_file}")
+        return None
+    
+    if not args.quiet:
+        print(f"🔧 Fixing altitude profile: {os.path.basename(kml_file)}")
+        print()
+    
+    try:
+        # Initialize profile corrector
+        corrector = KMLProfileCorrector()
+        
+        # Generate corrected profile filename
+        base_name = os.path.splitext(kml_file)[0]
+        corrected_file = f"{base_name}_corrected.kml"
+        
+        # Generate corrected profile
+        corrector.correct_kml_file(kml_file, corrected_file)
+        
+        if not os.path.exists(corrected_file):
+            print("❌ Error: Failed to generate corrected profile")
+            return None
+        
+        if not args.quiet:
+            print(f"✅ Corrected profile generated: {os.path.basename(corrected_file)}")
+            print()
+        
+        # Display the corrected profile
+        if not args.quiet:
+            print("📊 Displaying corrected profile...")
+        
+        viewer = KMLProfileViewer()
+        viewer.visualize_profile(corrected_file)
+        
+        if not args.quiet:
+            print(f"✅ Profile correction and visualization complete")
+            print(f"   Corrected file: {corrected_file}")
+            print()
+        
+        return corrected_file
+        
+    except Exception as e:
+        print(f"❌ Error during profile correction: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return None
+
+
 def cmd_list_profile(args):
     """Handle list --profile subcommand for flight path analysis"""
     from core.flight_analyzer import FlightProfileAnalyzer
@@ -400,13 +488,15 @@ def cmd_list_profile(args):
         for i, crossing in enumerate(filtered_crossings, 1):
             airspace = crossing['airspace']
             distance = crossing['distance_km']
+            is_actual_crossing = crossing.get('is_actual_crossing', True)  # Default to True for backward compatibility
             
             # Classify airspace type
             code_type = airspace.get('code_type', 'Unknown').upper()
             airspace_class = airspace.get('airspace_class', 'Unknown').upper()
             
             # Check if this is a red zone airspace (critical/restricted)
-            is_red_zone = (code_type in ['P', 'R'] or airspace_class == 'A')
+            # Only count as critical if it's an ACTUAL crossing, not just corridor-discovered
+            is_red_zone = (code_type in ['P', 'R'] or airspace_class == 'A') and is_actual_crossing
             if is_red_zone:
                 red_zone_count += 1
                 critical_airspaces.append({
@@ -417,19 +507,19 @@ def cmd_list_profile(args):
                     'distance': distance
                 })
             
-            # Select emoji and colors
+            # Select emoji and colors - show different indicators for corridor-only vs actual crossings
             if code_type in ['TMA']:
                 type_emoji = "🛬"
             elif code_type in ['RAS']:
                 type_emoji = "📡"
             elif code_type in ['R', 'P', 'D']:
-                type_emoji = "⛔"
+                type_emoji = "⛔" if is_actual_crossing else "🔍"  # Different icon for corridor-only
             elif code_type in ['CTR']:
                 type_emoji = "🏢"
             else:
                 type_emoji = "🌐"
             
-            # Apply red highlighting for critical airspaces
+            # Apply red highlighting only for critical airspaces that are actual crossings
             if is_red_zone and COLORS_AVAILABLE:
                 name_display = f"{Fore.RED}{Style.BRIGHT}{airspace['name']}{Style.RESET_ALL}"
                 type_display = f"{Fore.RED}{Style.BRIGHT}Type: {code_type}{Style.RESET_ALL}"
@@ -445,7 +535,10 @@ def cmd_list_profile(args):
                 name_display = airspace['name']
                 type_display = f"Type: {code_type}"
                 class_display = f"Class: {airspace_class}"
-                warning = ""
+                if not is_actual_crossing:
+                    warning = " (corridor proximity only)"
+                else:
+                    warning = ""
             
             print(f"{i:2d}. {type_emoji} {name_display} ({airspace.get('code_id', 'N/A')}){warning}")
             print(f"     {type_display} - {class_display}")
@@ -505,6 +598,15 @@ def cmd_list_profile(args):
 
 def cmd_generate(args, kml_service):
     """Handle generate subcommand"""
+    
+    # Check if --fix-profile option is used
+    if args.fix_profile:
+        corrected_profile_file = cmd_fix_profile_for_subcommand(args, args.fix_profile)
+        if corrected_profile_file:
+            # Update args.profile to use the corrected profile
+            args.profile = corrected_profile_file
+        else:
+            return
     
     # Check if --profile option is used
     if args.profile:
@@ -589,7 +691,7 @@ def cmd_generate_profile(args):
         print()
         
         # Initialize KML service for generation
-        kml_service_gen = KMLVolumeService()
+        kml_service_gen = KMLVolumeService(args.database)
         
         generated_files = []
         
@@ -693,8 +795,8 @@ FLIGHT PATH ANALYSIS:
   navpro list --profile flight.kml # List airspaces crossed chronologically
   
   Optional corridor settings:
-  --corridor-height 1500           # Vertical corridor ±1500 ft (default: 1000)
-  --corridor-width 15              # Horizontal corridor ±15 NM (default: 10)
+  --corridor-height 1000           # Vertical corridor ±1000 ft (default: 500)
+  --corridor-width 10              # Horizontal corridor ±10 NM (default: 5)
 
 OUTPUT OPTIONS:
   --summary, -s                    # Compact summary format
@@ -723,8 +825,8 @@ FLIGHT PATH GENERATION:
   navpro generate --profile flight.kml # Generate KML for crossed airspaces
   
   Optional corridor settings:
-  --corridor-height 1500           # Vertical corridor ±1500 ft (default: 1000)
-  --corridor-width 15              # Horizontal corridor ±15 NM (default: 10)
+  --corridor-height 1000           # Vertical corridor ±1000 ft (default: 500)
+  --corridor-width 10              # Horizontal corridor ±10 NM (default: 5)
 
 OUTPUT OPTIONS:
   --output FILE, -o FILE           # Specific output filename
@@ -763,6 +865,7 @@ OUTPUT:
   help        Show this help or help for specific commands
 
 🚀 QUICK START:
+  navpro list --fix-profile data/flight.kml      # Fix profile and analyze crossings
   navpro list --name "CHEVREUSE"           # Find CHEVREUSE airspaces
   navpro list --profile data/flight.kml    # Analyze flight path chronologically
   navpro generate --id 4749               # Generate KML for ID 4749
@@ -775,6 +878,7 @@ OUTPUT:
   navpro help stats                        # Help for stats command
 
 🌍 KEY FEATURES:
+  - Altitude profile correction with realistic flight patterns
   - Professional airspace search and listing
   - Flight path analysis with chronological crossing detection
   - 3D KML volume generation for Google Earth
@@ -803,10 +907,10 @@ def main():
     
     # Handle commands that need KML service
     if args.command in ['list', 'generate', 'stats']:
-        if args.command == 'list' and args.profile:
+        if args.command == 'list' and (args.profile or args.fix_profile):
             # Profile mode doesn't need KML service
             cmd_list(args, None)
-        elif args.command == 'generate' and args.profile:
+        elif args.command == 'generate' and (args.profile or args.fix_profile):
             # Profile mode doesn't need KML service
             cmd_generate(args, None)
         else:
