@@ -90,7 +90,12 @@ data/airspaces.db
 data/20250924_083633_LFXU-LFFU.kml
 data/20250924_220820_trace.kml
 data/20250924_221103_trace.kml
+data/20250926_165229_LFXU-LFFY.kml
 
 # Generated KML output files
 flight_profile_*.kml
 *_combined.kml
+
+# Output directory - generated corrected profiles and analysis files
+output/
+
