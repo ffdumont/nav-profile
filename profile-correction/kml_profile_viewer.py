@@ -131,17 +131,62 @@ class KMLProfileViewer:
         # Create the plot
         fig, ax = plt.subplots(figsize=(16, 10))
         
+        # Separate points into original waypoints and climb/descent points
+        original_waypoints = []
+        climb_descent_points = []
+        original_distances = []
+        climb_descent_distances = []
+        original_altitudes = []
+        climb_descent_altitudes = []
+        
+        for i, (name, alt_ft, dist) in enumerate(zip(names, altitudes_ft, cumulative_distances)):
+            if name.startswith(("Climb_", "Descent_")):
+                climb_descent_points.append(name)
+                climb_descent_distances.append(dist)
+                climb_descent_altitudes.append(alt_ft)
+            else:
+                original_waypoints.append(name)
+                original_distances.append(dist)
+                original_altitudes.append(alt_ft)
+        
         # Plot main profile line
-        ax.plot(cumulative_distances, altitudes_ft, 'b-', linewidth=3, 
-               label='Flight Profile', marker='o', markersize=8, markerfacecolor='red')
+        ax.plot(cumulative_distances, altitudes_ft, 'b-', linewidth=2, 
+               label='Flight Profile', alpha=0.7)
         ax.fill_between(cumulative_distances, 0, altitudes_ft, alpha=0.2, color='lightblue')
         
-        # Add waypoint labels with altitudes in feet
+        # Plot original waypoints with labels (red markers)
+        if original_distances:
+            ax.scatter(original_distances, original_altitudes, 
+                      color='red', s=100, zorder=5, label='Waypoints')
+        
+        # Plot climb/descent points without labels (different colors)
+        if climb_descent_distances:
+            climb_points_x = []
+            climb_points_y = []
+            descent_points_x = []
+            descent_points_y = []
+            
+            for name, dist, alt in zip(climb_descent_points, climb_descent_distances, climb_descent_altitudes):
+                if name.startswith("Climb_"):
+                    climb_points_x.append(dist)
+                    climb_points_y.append(alt)
+                else:  # Descent
+                    descent_points_x.append(dist)
+                    descent_points_y.append(alt)
+            
+            if climb_points_x:
+                ax.scatter(climb_points_x, climb_points_y, 
+                          color='green', s=60, marker='^', zorder=5, label='Climb Points')
+            if descent_points_x:
+                ax.scatter(descent_points_x, descent_points_y, 
+                          color='orange', s=60, marker='v', zorder=5, label='Descent Points')
+        
+        # Add waypoint labels with altitudes in feet (only for original waypoints)
         max_alt = max(altitudes_ft)
         min_alt = min(altitudes_ft)
         alt_range = max_alt - min_alt if max_alt != min_alt else 1000
         
-        for i, (name, alt_ft, dist) in enumerate(zip(names, altitudes_ft, cumulative_distances)):
+        for i, (name, alt_ft, dist) in enumerate(zip(original_waypoints, original_altitudes, original_distances)):
             # Smart label positioning to avoid overlap
             if i % 2 == 0:
                 label_y = alt_ft + alt_range * 0.08

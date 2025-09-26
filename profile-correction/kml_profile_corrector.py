@@ -228,44 +228,174 @@ class KMLProfileCorrector:
             start_point = points[i]
             end_point = points[i + 1]
             
-            # Branch target altitude is the altitude of the first point (start_point's original altitude)
-            target_altitude = start_point.altitude
-            
-            # For the last branch, handle descent to destination differently
-            if i == len(points) - 2:  # Last branch
-                # Always need to consider descent to arrival altitude for final approach
-                altitude_diff_ft = UnitConverter.meters_to_feet(current_altitude - arrival_altitude)
-                if altitude_diff_ft > 50:  # Need descent
-                    # Calculate distance needed for descent
-                    time_needed_min = altitude_diff_ft / self.descent_rate_fpm
-                    distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
-                    
-                    if distance_needed_nm >= distance_nm:
-                        # Not enough distance - descend from start of branch
-                        target_altitude = arrival_altitude
-                    else:
-                        # Keep current altitude for most of the branch, descent point will be calculated later
-                        # This signals that we need special final approach descent handling
-                        target_altitude = current_altitude  # This will trigger LEVEL, but special logic will override
-                else:
-                    # Already at or below destination altitude
-                    target_altitude = arrival_altitude
-            
-            # Calculate distance
+            # Calculate distance first (needed for calculations below)
             distance_nm = self.calculate_distance_nm(start_point, end_point)
             
-            # Determine action needed
-            altitude_diff_ft = UnitConverter.meters_to_feet(target_altitude - current_altitude)
+            # Special handling for first branch - may need initial climb from departure
+            if i == 0:  # First branch from departure
+                target_waypoint_altitude = end_point.altitude
+                altitude_diff_ft = UnitConverter.meters_to_feet(target_waypoint_altitude - current_altitude)
+                
+                if abs(altitude_diff_ft) > 50:  # Significant initial climb/descent needed
+                    change_action = "CLIMB" if altitude_diff_ft > 0 else "DESCENT"
+                    
+                    # Calculate distance needed for initial climb/descent
+                    rate_fpm = self.climb_rate_fpm if change_action == "CLIMB" else self.descent_rate_fpm
+                    time_needed_min = abs(altitude_diff_ft) / rate_fpm
+                    distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
+                    
+                    if distance_needed_nm < distance_nm:
+                        # Split first branch into climb + level segments
+                        climb_end_fraction = distance_needed_nm / distance_nm
+                        climb_end_lon, climb_end_lat = self.interpolate_point(start_point, end_point, climb_end_fraction)
+                        level_distance_nm = distance_nm - distance_needed_nm
+                        
+                        # Create climb segment (departure to climb end)
+                        climb_branch = Branch(
+                            start_point=start_point,
+                            end_point=KMLPoint(f"Climb_{end_point.name.replace(' ', '_')}_{int(UnitConverter.meters_to_feet(target_waypoint_altitude))}", 
+                                             climb_end_lon, climb_end_lat, target_waypoint_altitude),
+                            target_altitude=target_waypoint_altitude,  # Target waypoint altitude
+                            distance_nm=distance_needed_nm,
+                            action=change_action,
+                            altitude_change_ft=altitude_diff_ft
+                        )
+                        climb_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branches.append(climb_branch)
+                        
+                        # Create level segment (climb end to waypoint)  
+                        if level_distance_nm > 0:
+                            level_branch = Branch(
+                                start_point=KMLPoint(f"Climb_{end_point.name.replace(' ', '_')}_{int(UnitConverter.meters_to_feet(target_waypoint_altitude))}", 
+                                                   climb_end_lon, climb_end_lat, target_waypoint_altitude),
+                                end_point=end_point,
+                                target_altitude=target_waypoint_altitude,  # Maintain target altitude
+                                distance_nm=level_distance_nm,
+                                action="LEVEL",
+                                altitude_change_ft=0
+                            )
+                            level_branch._start_altitude_ft = UnitConverter.meters_to_feet(target_waypoint_altitude)
+                            branches.append(level_branch)
+                        
+                        # Update current altitude and continue
+                        current_altitude = target_waypoint_altitude
+                        continue
+                    else:
+                        # Not enough distance - climb/descend throughout entire segment
+                        branch = Branch(
+                            start_point=start_point,
+                            end_point=end_point,
+                            target_altitude=target_waypoint_altitude,
+                            distance_nm=distance_nm,
+                            action=change_action,
+                            altitude_change_ft=altitude_diff_ft
+                        )
+                        branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branch.is_unreachable = True
+                        branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available"
+                        branches.append(branch)
+                        current_altitude = target_waypoint_altitude
+                        continue
+                else:
+                    # No significant altitude change needed from departure - create simple level branch
+                    target_altitude = current_altitude
+                    action = "LEVEL"
+                    altitude_change_ft = 0
+                    
+                    # Create branch
+                    branch = Branch(
+                        start_point=start_point,
+                        end_point=end_point,
+                        target_altitude=target_altitude,
+                        distance_nm=distance_nm,
+                        action=action,
+                        altitude_change_ft=altitude_change_ft
+                    )
+                    
+                    # Store starting altitude for display purposes
+                    branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                    branch.end_of_action_point = None
+                    branches.append(branch)
+                    
+                    # Update current altitude to waypoint altitude
+                    current_altitude = end_point.altitude
+                    continue
             
-            if abs(altitude_diff_ft) < 50:  # Less than 50 ft difference - consider level
+            # Special handling for final branch - may need to split into level + descent
+            if i == len(points) - 2:  # Final branch to destination
+                # Check if we need final descent
+                final_altitude_diff_ft = UnitConverter.meters_to_feet(arrival_altitude - current_altitude)
+                
+                if abs(final_altitude_diff_ft) > 50:  # Significant final descent needed
+                    change_action = "DESCENT" if final_altitude_diff_ft < 0 else "CLIMB"
+                    
+                    # Calculate distance needed for final descent/climb
+                    rate_fpm = self.descent_rate_fpm if change_action == "DESCENT" else self.climb_rate_fpm
+                    time_needed_min = abs(final_altitude_diff_ft) / rate_fpm
+                    distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
+                    
+                    if distance_needed_nm < distance_nm:
+                        # Split final branch into level + descent segments
+                        level_distance_nm = distance_nm - distance_needed_nm
+                        descent_start_fraction = level_distance_nm / distance_nm
+                        descent_start_lon, descent_start_lat = self.interpolate_point(start_point, end_point, descent_start_fraction)
+                        
+                        # Create level segment (waypoint to descent start)
+                        level_branch = Branch(
+                            start_point=start_point,
+                            end_point=KMLPoint("Descent_Start", descent_start_lon, descent_start_lat, current_altitude),
+                            target_altitude=current_altitude,  # Maintain current altitude
+                            distance_nm=level_distance_nm,
+                            action="LEVEL",
+                            altitude_change_ft=0
+                        )
+                        level_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branches.append(level_branch)
+                        
+                        # Create descent segment (descent start to destination)
+                        descent_branch = Branch(
+                            start_point=KMLPoint("Descent_Start", descent_start_lon, descent_start_lat, current_altitude),
+                            end_point=end_point,
+                            target_altitude=arrival_altitude,  # Arrival altitude
+                            distance_nm=distance_needed_nm,
+                            action=change_action,
+                            altitude_change_ft=final_altitude_diff_ft
+                        )
+                        descent_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        # Add descent point at the start of the final descent 
+                        # The descent point should be at the starting altitude (2900 ft), not midway
+                        descent_branch.end_of_action_point = (descent_start_lon, descent_start_lat, current_altitude)
+                        branches.append(descent_branch)
+                        
+                        # Update current altitude and skip regular branch processing
+                        current_altitude = arrival_altitude
+                        continue  # Skip the rest of the loop iteration
+                    else:
+                        # Not enough distance - descend/climb from start of segment
+                        branch = Branch(
+                            start_point=start_point,
+                            end_point=end_point,
+                            target_altitude=arrival_altitude,
+                            distance_nm=distance_nm,
+                            action=change_action,
+                            altitude_change_ft=final_altitude_diff_ft
+                        )
+                        branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branch.is_unreachable = True
+                        branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available"
+                        branches.append(branch)
+                        current_altitude = arrival_altitude
+                        continue  # Skip the rest of the loop iteration
+                else:
+                    # No significant altitude change needed - create simple level branch
+                    target_altitude = current_altitude
+                    action = "LEVEL"
+                    altitude_change_ft = 0
+            else:
+                # Regular branch - maintain current altitude until reaching the END waypoint
+                target_altitude = current_altitude  # Maintain current altitude for this branch
                 action = "LEVEL"
                 altitude_change_ft = 0
-            elif altitude_diff_ft > 0:
-                action = "CLIMB" 
-                altitude_change_ft = altitude_diff_ft
-            else:
-                action = "DESCENT"
-                altitude_change_ft = altitude_diff_ft
             
             # Create branch
             branch = Branch(
@@ -280,67 +410,126 @@ class KMLProfileCorrector:
             # Store starting altitude for display purposes
             branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
             
-            # Special handling for final approach - check if we need descent to arrival altitude
-            if i == len(points) - 2 and action == "LEVEL":  # Final branch initially set to LEVEL
-                final_altitude_diff_ft = UnitConverter.meters_to_feet(current_altitude - arrival_altitude)
-                if final_altitude_diff_ft > 50:  # Need descent
-                    final_time_needed_min = final_altitude_diff_ft / self.descent_rate_fpm
-                    final_distance_needed_nm = (self.ground_speed_kts / 60) * final_time_needed_min
-                    
-                    if final_distance_needed_nm < distance_nm:
-                        # Calculate descent start point (from end of branch backwards)
-                        descent_start_fraction = 1.0 - (final_distance_needed_nm / distance_nm)
-                        descent_start_lon, descent_start_lat = self.interpolate_point(start_point, end_point, descent_start_fraction)
-                        # The descent point is where we START descending (at current altitude)
-                        branch.end_of_action_point = (descent_start_lon, descent_start_lat, current_altitude)
-                        
-                        # Update branch info for final approach descent
-                        branch.action = "DESCENT"
-                        branch.altitude_change_ft = -final_altitude_diff_ft
-                        branch.target_altitude = arrival_altitude
-                        action = "DESCENT"  # Update local action variable
-                        altitude_change_ft = -final_altitude_diff_ft
-                    else:
-                        # Not enough distance for proper descent - descend from start
-                        branch.action = "DESCENT"
-                        branch.altitude_change_ft = -final_altitude_diff_ft
-                        branch.target_altitude = arrival_altitude
-                        action = "DESCENT"  # Update local action variable
-                        altitude_change_ft = -final_altitude_diff_ft
-            
-            # Calculate end of climb/descent point if needed
-            if action in ["CLIMB", "DESCENT"]:
-                rate_fpm = self.climb_rate_fpm if action == "CLIMB" else self.descent_rate_fpm
-                time_needed_min = abs(altitude_change_ft) / rate_fpm
-                distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
-                
-                # Skip if already handled by final approach logic above
-                if not (hasattr(branch, 'end_of_action_point') and branch.end_of_action_point):
-                    if distance_needed_nm >= distance_nm:
-                        # Check if altitude change is achievable within the branch distance
-                        # Unreachable - not enough distance
-                        branch.is_unreachable = True
-                        achievable_change_ft = (distance_nm / (self.ground_speed_kts / 60)) * rate_fpm
-                        if action == "CLIMB":
-                            achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) + achievable_change_ft
-                            branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
-                        else:
-                            achievable_altitude_ft = UnitConverter.meters_to_feet(current_altitude) - achievable_change_ft
-                            branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {distance_nm:.1f} NM available. Max achievable: {achievable_altitude_ft:.0f} ft"
-                    else:
-                        # Calculate position where climb/descent ends
-                        fraction = distance_needed_nm / distance_nm
-                        end_lon, end_lat = self.interpolate_point(start_point, end_point, fraction)
-                        branch.end_of_action_point = (end_lon, end_lat, target_altitude)
+            # No end of action points for level flight branches
+            branch.end_of_action_point = None
             
             branches.append(branch)
             
-            # Update current altitude for next branch
-            # For final approach with descent point, use arrival altitude
-            if i == len(points) - 2 and branch.action == "DESCENT" and hasattr(branch, 'end_of_action_point'):
-                current_altitude = arrival_altitude
-            else:
-                current_altitude = branch.target_altitude
+            # After reaching the end waypoint, check if altitude needs to change
+            waypoint_altitude = end_point.altitude
+            final_approach_handled = False
+            
+            if i == len(points) - 2:  # Last waypoint - use arrival altitude instead
+                waypoint_altitude = arrival_altitude
+                final_approach_handled = True  # We'll handle this specially below
+                
+            altitude_diff_ft = UnitConverter.meters_to_feet(waypoint_altitude - current_altitude)
+            
+            # If altitude change needed FROM this waypoint, create additional altitude change segment
+            if abs(altitude_diff_ft) > 50 and not final_approach_handled:  # Skip if we'll handle as final approach
+                if altitude_diff_ft > 0:
+                    change_action = "CLIMB"
+                else:
+                    change_action = "DESCENT"
+                    
+                # Calculate distance needed for altitude change
+                rate_fpm = self.climb_rate_fpm if change_action == "CLIMB" else self.descent_rate_fpm
+                time_needed_min = abs(altitude_diff_ft) / rate_fpm
+                distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
+                
+                # Calculate where altitude change ends (for intermediate waypoints)
+                # For now, assume we have enough distance in the next segment
+                next_distance = 0
+                if i < len(points) - 2:  # Not the last branch
+                    next_start = points[i + 1]
+                    next_end = points[i + 2] 
+                    next_distance = self.calculate_distance_nm(next_start, next_end)
+                
+                # Create altitude change "branch" starting from current waypoint
+                altitude_branch = Branch(
+                    start_point=end_point,
+                    end_point=end_point,  # Same point, but represents altitude change
+                    target_altitude=waypoint_altitude,
+                    distance_nm=distance_needed_nm,
+                    action=change_action,
+                    altitude_change_ft=altitude_diff_ft
+                )
+                
+                altitude_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                
+                # Calculate end point of altitude change if we have enough distance
+                if next_distance >= distance_needed_nm:
+                    # Altitude change happens within next segment
+                    if i < len(points) - 2:
+                        next_start = points[i + 1]
+                        next_end = points[i + 2]
+                        fraction = distance_needed_nm / next_distance
+                        end_lon, end_lat = self.interpolate_point(next_start, next_end, fraction)
+                        altitude_branch.end_of_action_point = (end_lon, end_lat, waypoint_altitude)
+                
+                branches.append(altitude_branch)
+            
+            # Handle final approach separately (after BEVRO altitude change)
+            if i == len(points) - 2:  # Last waypoint
+                final_altitude_diff_ft = UnitConverter.meters_to_feet(arrival_altitude - current_altitude)
+                
+                if abs(final_altitude_diff_ft) > 50:  # Significant final descent needed
+                    change_action = "DESCENT" if final_altitude_diff_ft < 0 else "CLIMB"
+                    
+                    # Calculate distance needed for final descent
+                    rate_fpm = self.descent_rate_fpm if change_action == "DESCENT" else self.climb_rate_fpm
+                    time_needed_min = abs(final_altitude_diff_ft) / rate_fpm
+                    distance_needed_nm = (self.ground_speed_kts / 60) * time_needed_min
+                    
+                    # Calculate total distance from current waypoint to destination
+                    final_distance_nm = self.calculate_distance_nm(end_point, points[-1])
+                    
+                    if distance_needed_nm < final_distance_nm:
+                        # Split into level segment + descent segment
+                        level_distance_nm = final_distance_nm - distance_needed_nm
+                        descent_start_fraction = level_distance_nm / final_distance_nm
+                        descent_start_lon, descent_start_lat = self.interpolate_point(end_point, points[-1], descent_start_fraction)
+                        
+                        # Create level segment (waypoint to descent start)
+                        level_branch = Branch(
+                            start_point=end_point,
+                            end_point=KMLPoint("Descent_Start", descent_start_lon, descent_start_lat, current_altitude),
+                            target_altitude=current_altitude,  # Maintain current altitude
+                            distance_nm=level_distance_nm,
+                            action="LEVEL",
+                            altitude_change_ft=0
+                        )
+                        level_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branches.append(level_branch)
+                        
+                        # Create descent segment (descent start to destination)
+                        descent_branch = Branch(
+                            start_point=KMLPoint("Descent_Start", descent_start_lon, descent_start_lat, current_altitude),
+                            end_point=points[-1],
+                            target_altitude=arrival_altitude,  # Arrival altitude
+                            distance_nm=distance_needed_nm,
+                            action=change_action,
+                            altitude_change_ft=final_altitude_diff_ft
+                        )
+                        descent_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        branches.append(descent_branch)
+                    else:
+                        # Not enough distance - descend from start of segment
+                        descent_branch = Branch(
+                            start_point=end_point,
+                            end_point=points[-1],
+                            target_altitude=arrival_altitude,
+                            distance_nm=final_distance_nm,
+                            action=change_action,
+                            altitude_change_ft=final_altitude_diff_ft
+                        )
+                        descent_branch._start_altitude_ft = UnitConverter.meters_to_feet(current_altitude)
+                        descent_branch.is_unreachable = True
+                        descent_branch.unreachable_reason = f"Need {distance_needed_nm:.1f} NM but only {final_distance_nm:.1f} NM available"
+                        branches.append(descent_branch)
+            
+            # Update current altitude to waypoint altitude
+            current_altitude = waypoint_altitude
         
         return branches
     
@@ -392,38 +581,45 @@ class KMLProfileCorrector:
         current_altitude = departure_altitude
         
         # Process each branch and add corrected points in proper sequence
+        processed_waypoints = set()  # Track which waypoints we've already added
+        
         for i, branch in enumerate(branches):
-            # Add the start point with corrected altitude
-            if i == 0:  # First point - departure altitude
-                corrected_points.append((branch.start_point.name, branch.start_point.longitude, 
-                                       branch.start_point.latitude, departure_altitude))
-                current_altitude = departure_altitude
-            else:
-                # Use the target altitude from the previous branch (already added as end point)
-                pass
+            # Add the start point with corrected altitude (only once per waypoint)
+            if branch.start_point.name not in processed_waypoints:
+                # Skip calculated intermediate points like "Descent_Start"
+                if not branch.start_point.name.startswith(("Descent_Start", "Climb_Start")):
+                    if i == 0:  # First point - departure altitude
+                        corrected_points.append((branch.start_point.name, branch.start_point.longitude, 
+                                               branch.start_point.latitude, departure_altitude))
+                        processed_waypoints.add(branch.start_point.name)
+                    else:
+                        # Add waypoint at current altitude when we reach it
+                        corrected_points.append((branch.start_point.name, branch.start_point.longitude,
+                                               branch.start_point.latitude, current_altitude))
+                        processed_waypoints.add(branch.start_point.name)
             
-            # Add climb/descent end point if needed (intermediate point during the branch)
+            # Add climb/descent action points if needed
             if branch.end_of_action_point and not branch.is_unreachable:
                 lon, lat, alt = branch.end_of_action_point
                 alt_ft = int(UnitConverter.meters_to_feet(alt))
                 
-                # Special naming for final approach descent
-                if i == len(branches) - 1 and branch.action == "DESCENT":
-                    # Final segment: Descent_<level_in_ft>_<waypoint_name> (to destination)
-                    action_name = f"Descent_{alt_ft}_{branch.end_point.name}"
-                else:
-                    # Regular segments: Climb_<waypoint_name>_<level_in_ft> or Descent_<waypoint_name>_<level_in_ft>
-                    # Use start_point name (where the action happens)
+                if branch.action == "DESCENT":
                     target_alt_ft = int(UnitConverter.meters_to_feet(branch.target_altitude))
-                    action_name = f"{branch.action.title()}_{branch.start_point.name}_{target_alt_ft}"
-                
-                corrected_points.append((action_name, lon, lat, alt))
-            
-            # Add the end point of the branch with target altitude
-            # (except for the last branch - we'll handle that separately)
-            if i < len(branches) - 1:
-                corrected_points.append((branch.end_point.name, branch.end_point.longitude,
-                                       branch.end_point.latitude, branch.target_altitude))
+                    # Special naming for different types of descents
+                    if "Descent_Start" in branch.start_point.name:
+                        # Final descent to destination
+                        dest_name = branch.end_point.name.split()[-1] if " " in branch.end_point.name else branch.end_point.name[:4]
+                        current_alt_ft = int(UnitConverter.meters_to_feet(current_altitude))
+                        action_name = f"Descent_{current_alt_ft}_{dest_name}"
+                    else:
+                        # Descent to waypoint altitude - happens AT the waypoint
+                        waypoint_name = branch.end_point.name.split()[-1] if " " in branch.end_point.name else branch.end_point.name
+                        action_name = f"Descent_{waypoint_name}_{target_alt_ft}"
+                    corrected_points.append((action_name, lon, lat, alt))
+                else:  # CLIMB
+                    target_alt_ft = int(UnitConverter.meters_to_feet(branch.target_altitude))
+                    action_name = f"Climb_{branch.end_point.name}_{target_alt_ft}"
+                    corrected_points.append((action_name, lon, lat, alt))
             
             # Update current altitude for next iteration
             current_altitude = branch.target_altitude
@@ -591,6 +787,100 @@ class KMLProfileCorrector:
             print(f"❌ Error saving corrected KML file: {e}")
             print(f"   Attempted to save to: {output_file}")
             raise
+        
+        # Generate airspace KML in the same directory
+        self.generate_airspace_kml(input_file, output_file)
+    
+    def generate_airspace_kml(self, input_file: str, output_file: str):
+        """Generate airspace KML file in the same directory as the corrected profile"""
+        try:
+            import sys
+            import os
+            
+            # Add the parent directory to the path to import navpro modules
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            navpro_dir = os.path.join(parent_dir, 'navpro')
+            
+            # Add both the parent directory and navpro directory to path
+            sys.path.insert(0, parent_dir)
+            sys.path.insert(0, navpro_dir)
+            
+            # Try different import paths for the flight analyzer and KML service
+            try:
+                from core.flight_analyzer import FlightProfileAnalyzer
+                from visualization.kml_generator import KMLVolumeService
+                from core.spatial_query import KMLFlightPathParser
+                db_path = os.path.join(parent_dir, 'data', 'airspaces.db')
+            except ImportError as e1:
+                try:
+                    from navpro.core.flight_analyzer import FlightProfileAnalyzer
+                    from navpro.visualization.kml_generator import KMLVolumeService
+                    from navpro.core.spatial_query import KMLFlightPathParser
+                    db_path = os.path.join(parent_dir, 'data', 'airspaces.db')
+                except ImportError as e2:
+                    print(f"⚠️  Could not import required modules: {e1}, {e2}")
+                    print("   The corrected profile KML was still saved successfully.")
+                    return
+            
+            print(f"\nGenerating airspace KML...")
+            
+            # Check if database exists
+            if not os.path.exists(db_path):
+                print(f"⚠️  Airspace database not found: {db_path}")
+                print("   The corrected profile KML was still saved successfully.")
+                return
+            
+            # Initialize analyzer with corridor settings
+            analyzer = FlightProfileAnalyzer(db_path=db_path, 
+                                          corridor_height_ft=500, 
+                                          corridor_width_nm=5.0)
+            
+            # Get airspace crossings from the corrected KML file
+            crossings = analyzer.get_chronological_crossings(output_file, sample_distance_km=5.0)
+            
+            if not crossings:
+                print(f"⚠️  No airspace crossings found in the corrected flight profile")
+                print("   The corrected profile KML was still saved successfully.")
+                return
+            
+            # Extract unique airspace IDs (preserve order)
+            airspace_ids = [crossing['airspace']['id'] for crossing in crossings]
+            unique_ids = list(dict.fromkeys(airspace_ids))  # Remove duplicates while preserving order
+            
+            print(f"   Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces")
+            
+            # Generate airspace KML file name in same directory as output
+            output_dir = os.path.dirname(output_file)
+            base_name = os.path.splitext(os.path.basename(output_file))[0]
+            airspace_kml_file = os.path.join(output_dir, f"{base_name}_airspaces.kml")
+            
+            # Initialize KML service for generation
+            kml_service = KMLVolumeService(db_path)
+            
+            # Parse flight coordinates from the corrected KML
+            flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(output_file)
+            
+            # Generate organized KML with flight path and airspaces
+            flight_name = os.path.splitext(os.path.basename(output_file))[0]
+            kml_content = kml_service.generate_multiple_airspaces_kml(
+                unique_ids, 
+                flight_name=flight_name,
+                flight_coordinates=flight_coordinates
+            )
+            
+            # Write KML file
+            with open(airspace_kml_file, 'w', encoding='utf-8') as f:
+                f.write(kml_content)
+            
+            print(f"✅ Airspace KML file saved: {airspace_kml_file}")
+            print(f"   Load both KML files in Google Earth to see the complete flight analysis.")
+            
+        except ImportError as e:
+            print(f"⚠️  Could not generate airspace KML: Missing required modules ({e})")
+            print("   The corrected profile KML was still saved successfully.")
+        except Exception as e:
+            print(f"⚠️  Could not generate airspace KML: {e}")
+            print("   The corrected profile KML was still saved successfully.")
 
 
 def main():
