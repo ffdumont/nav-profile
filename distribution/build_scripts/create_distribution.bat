@@ -1,23 +1,23 @@
 @echo off
-REM NavPro Distribution Package Creator
+REM AirCheck Distribution Package Creator
 REM This script creates a complete distribution package for Windows
 
 echo ========================================
-echo NavPro Distribution Package Creator
+echo AirCheck Distribution Package Creator
 echo ========================================
 echo.
 
 REM Create distribution directory
-if exist "NavPro_Distribution" rmdir /s /q "NavPro_Distribution"
-mkdir "NavPro_Distribution"
+if exist "AirCheck_Distribution" rmdir /s /q "AirCheck_Distribution"
+mkdir "AirCheck_Distribution"
 
 REM Copy executable
-if exist "dist\NavPro.exe" (
+if exist "dist\AirCheck.exe" (
     echo Copying executable...
-    copy "dist\NavPro.exe" "NavPro_Distribution\NavPro.exe"
-    echo ✓ NavPro.exe copied
+    copy "dist\AirCheck.exe" "AirCheck_Distribution\AirCheck.exe"
+    echo ✓ AirCheck.exe copied
 ) else (
-    echo ❌ ERROR: NavPro.exe not found in dist folder!
+    echo ❌ ERROR: AirCheck.exe not found in dist folder!
     echo Please run build_gui.bat first.
     pause
     exit /b 1
@@ -26,8 +26,8 @@ if exist "dist\NavPro.exe" (
 REM Copy data files
 if exist "data\airspaces.db" (
     echo Copying airspace database...
-    mkdir "NavPro_Distribution\data"
-    copy "data\airspaces.db" "NavPro_Distribution\data\"
+    mkdir "AirCheck_Distribution\data"
+    copy "data\airspaces.db" "AirCheck_Distribution\data\"
     echo ✓ airspaces.db copied
 ) else (
     echo ⚠️  WARNING: airspaces.db not found - users will need to provide their own
@@ -36,17 +36,17 @@ if exist "data\airspaces.db" (
 REM Copy documentation
 if exist "README_DIST.md" (
     echo Copying documentation...
-    copy "README_DIST.md" "NavPro_Distribution\README.md"
+    copy "README_DIST.md" "AirCheck_Distribution\README.md"
     echo ✓ README.md copied
 )
 
 REM Create sample data folder with sample files
 echo Copying sample files...
-mkdir "NavPro_Distribution\sample_data"
+mkdir "AirCheck_Distribution\sample_data"
 
 REM Copy corrected KML sample
 if exist "LFXU-LFFU-CORRECTED.kml" (
-    copy "LFXU-LFFU-CORRECTED.kml" "NavPro_Distribution\sample_data\"
+    copy "LFXU-LFFU-CORRECTED.kml" "AirCheck_Distribution\sample_data\"
     echo ✓ Corrected KML sample copied
 ) else (
     echo ⚠ Warning: LFXU-LFFU-CORRECTED.kml not found
@@ -54,7 +54,7 @@ if exist "LFXU-LFFU-CORRECTED.kml" (
 
 REM Copy AIXM sample database  
 if exist "data\AIXM4.5_all_FR_OM_2025-10-02.xml" (
-    copy "data\AIXM4.5_all_FR_OM_2025-10-02.xml" "NavPro_Distribution\sample_data\"
+    copy "data\AIXM4.5_all_FR_OM_2025-10-02.xml" "AirCheck_Distribution\sample_data\"
     echo ✓ AIXM sample database copied
 ) else (
     echo ⚠ Warning: AIXM4.5_all_FR_OM_2025-10-02.xml not found in data folder
@@ -62,17 +62,17 @@ if exist "data\AIXM4.5_all_FR_OM_2025-10-02.xml" (
 
 REM Copy additional KML samples if they exist
 if exist "data\*.kml" (
-    copy "data\*.kml" "NavPro_Distribution\sample_data\"
+    copy "data\*.kml" "AirCheck_Distribution\sample_data\"
     echo ✓ Additional KML samples copied
 ) else (
-    echo Place your KML flight profiles in this folder > "NavPro_Distribution\sample_data\Place_KML_files_here.txt"
+    echo Place your KML flight profiles in this folder > "AirCheck_Distribution\sample_data\Place_KML_files_here.txt"
 )
 
 REM Create launch script
-echo @echo off > "NavPro_Distribution\Launch_NavPro.bat"
-echo cd /d "%%~dp0" >> "NavPro_Distribution\Launch_NavPro.bat"
-echo NavPro.exe >> "NavPro_Distribution\Launch_NavPro.bat"
-echo pause >> "NavPro_Distribution\Launch_NavPro.bat"
+echo @echo off > "AirCheck_Distribution\Launch_AirCheck.bat"
+echo cd /d "%%~dp0" >> "AirCheck_Distribution\Launch_AirCheck.bat"
+echo AirCheck.exe >> "AirCheck_Distribution\Launch_AirCheck.bat"
+echo pause >> "AirCheck_Distribution\Launch_AirCheck.bat"
 
 echo.
 echo ========================================
@@ -80,18 +80,18 @@ echo DISTRIBUTION PACKAGE CREATED!
 echo ========================================
 echo.
 echo Package contents:
-dir /b "NavPro_Distribution"
+dir /b "AirCheck_Distribution"
 echo.
-echo Location: %cd%\NavPro_Distribution
+echo Location: %cd%\AirCheck_Distribution
 echo.
 
 REM Prompt for version number and create ZIP
 set /p VERSION="Enter version number (e.g., 1.1.1): "
 if not "%VERSION%"=="" (
     echo Creating ZIP archive...
-    powershell "Compress-Archive -Path 'NavPro_Distribution\*' -DestinationPath '..\releases\NavPro_v%VERSION%.zip' -Force"
-    if exist "..\releases\NavPro_v%VERSION%.zip" (
-        echo ✓ ZIP archive created: ..\releases\NavPro_v%VERSION%.zip
+    powershell "Compress-Archive -Path 'AirCheck_Distribution\*' -DestinationPath '..\releases\AirCheck_v%VERSION%.zip' -Force"
+    if exist "..\releases\AirCheck_v%VERSION%.zip" (
+        echo ✓ ZIP archive created: ..\releases\AirCheck_v%VERSION%.zip
     ) else (
         echo ❌ Failed to create ZIP archive
     )
@@ -99,9 +99,9 @@ if not "%VERSION%"=="" (
 )
 
 echo To distribute:
-echo 1. Share the ZIP file: NavPro_v%VERSION%.zip
-echo 2. Or share the NavPro_Distribution folder
-echo 3. Users run NavPro.exe or Launch_NavPro.bat
+echo 1. Share the ZIP file: AirCheck_v%VERSION%.zip
+echo 2. Or share the AirCheck_Distribution folder
+echo 3. Users run AirCheck.exe or Launch_AirCheck.bat
 echo.
 echo Prerequisites for users:
 echo - Windows 10/11 (64-bit)

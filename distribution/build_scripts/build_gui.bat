@@ -1,8 +1,8 @@
 @echo off
-REM Build script for NavPro GUI executable
+REM Build script for AirCheck GUI executable
 REM This script creates a standalone Windows executable using PyInstaller
 
-echo Building NavPro GUI executable...
+echo Building AirCheck GUI executable...
 echo.
 
 REM Clean previous builds
@@ -18,16 +18,16 @@ if not exist "data\airspaces.db" (
 
 REM Build the executable
 echo Running PyInstaller...
-pyinstaller navpro_gui.spec
+pyinstaller aircheck_gui.spec
 
 REM Check if build was successful
-if exist "dist\NavPro.exe" (
+if exist "dist\AirCheck.exe" (
     echo.
     echo ================================
     echo BUILD SUCCESSFUL!
     echo ================================
     echo.
-    echo Executable created: dist\NavPro.exe
+    echo Executable created: dist\AirCheck.exe
     echo.
     echo To distribute:
     echo 1. Copy the entire 'dist' folder

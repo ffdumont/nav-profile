@@ -1,20 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NavPro GUI - Windows GUI Application for Navigation Profile Analysis
-Provides easy          # Profile buttons (first row)
-        profile_buttons_frame = ttk.Frame(buttons_frame)
-        profile_buttons_frame.pack(pady=5)
-        
-        self.correct_btn = ttk.Button(profile_buttons_frame, text="🔧 Correct Profile", 
-                                     command=self.correct_profile, style='Accent.TButton')
-        self.correct_btn.pack(side=tk.LEFT, padx=10)elf.correct_btn = ttk.Button(profile_buttons_frame, text="🔧 Correct Profile", 
-                                     command=self.correct_profile, style='Accent.TButton')
-        self.correct_btn.pack(side=tk.LEFT, padx=10)
-        
-        self.view_profile_btn = ttk.Button(profile_buttons_frame, text="📊 View Profile", 
-                                          command=self.view_profile)
-        self.view_profile_btn.pack(side=tk.LEFT, padx=10)erface for AIXM processing and flight path analysis
+Airspace Checker GUI - Windows GUI Application for Flight Profile & Airspace Analysis
+Provides easy interface for AIXM processing and flight path analysis
 """
 
 import tkinter as tk
@@ -27,6 +15,7 @@ import webbrowser
 from pathlib import Path
 import io
 import contextlib
+from typing import Dict, Any
 
 # Add the project directory to Python path
 sys.path.append(str(Path(__file__).parent))
@@ -35,11 +24,22 @@ sys.path.append(str(Path(__file__).parent))
 from core.flight_analyzer import FlightProfileAnalyzer
 from visualization.kml_generator import KMLVolumeService
 
+# Import version information
+try:
+    from version import get_version
+    VERSION = get_version()
+except (ImportError, AttributeError):
+    try:
+        from .version import get_version
+        VERSION = get_version()
+    except (ImportError, AttributeError):
+        VERSION = "1.2.0"
 
-class NavProGUI:
+
+class AirspaceCheckerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("NavPro - Profile Corrector & Airspace Analyzer")
+        self.root.title(f"Airspace Checker v{VERSION} - Flight Profile & Airspace Analyzer")
         self.root.geometry("900x800")
         self.root.minsize(700, 600)
         
@@ -55,6 +55,9 @@ class NavProGUI:
         self.climb_rate = tk.IntVar(value=500)  # ft/min
         self.descent_rate = tk.IntVar(value=500)  # ft/min
         self.ground_speed = tk.IntVar(value=100)  # kts
+        
+        # KML display settings
+        self.show_intermediate_points = tk.BooleanVar(value=False)  # Hide climb/descent points by default
         
         # Track corrected file path
         self.corrected_kml_file = ""
@@ -75,8 +78,8 @@ class NavProGUI:
         
     def display_welcome_message(self):
         """Display a colorful welcome message in the output area"""
-        self.clear_output_with_header("NAVPRO - PROFILE CORRECTOR & AIRSPACE ANALYZER")
-        self.log_info("Welcome to NavPro! 🛩️")
+        self.clear_output_with_header("AIRSPACE CHECKER - FLIGHT PROFILE & AIRSPACE ANALYZER")
+        self.log_info(f"Welcome to Airspace Checker v{VERSION}! 🛩️")
         self.log_output("")
         
         # Aviation Safety Disclaimer
@@ -90,11 +93,24 @@ class NavProGUI:
         self.log_success("✅ Airspace crossing analysis with visual warnings")  
         self.log_success("✅ Smart profile viewing (auto-corrects when enabled)")
         self.log_success("✅ Automatic AIRAC cycle detection and loading")
+        self.log_success("✅ Hide/show intermediate climb/descent points in KML")
+        self.log_success("✅ Automatic database rebuild when new AIRAC is selected")
         self.log_output("")
         
         if self.aixm_file.get():
             self.log_info(f"📂 AIXM Database: {os.path.basename(self.aixm_file.get())}")
             self.log_info(f"📅 {self.airac_info_var.get()}")
+            
+            # Check database status
+            db_status = self._check_database_status()
+            if db_status["exists"]:
+                if db_status["needs_rebuild"]:
+                    self.log_warning(f"⚠️ Database may be outdated (AIRAC mismatch)")
+                    self.log_warning("   Consider rebuilding database for current AIRAC cycle")
+                else:
+                    self.log_success(f"✅ Database ready (matches current AIRAC)")
+            else:
+                self.log_warning("⚠️ Airspace database not found - will be created on first analysis")
         else:
             self.log_warning("⚠️ No AIXM database loaded - please select one to enable airspace analysis")
             
@@ -115,7 +131,7 @@ class NavProGUI:
         main_frame.columnconfigure(1, weight=1)
         
         # Title
-        title_label = ttk.Label(main_frame, text="NavPro - Profile Corrector & Airspace Analyzer", 
+        title_label = ttk.Label(main_frame, text=f"Airspace Checker v{VERSION} - Flight Profile & Airspace Analyzer", 
                                font=('Arial', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
         
@@ -183,6 +199,10 @@ class NavProGUI:
         speed_spin = ttk.Spinbox(correction_frame, from_=50, to=500, textvariable=self.ground_speed, width=10)
         speed_spin.grid(row=1, column=5, sticky=tk.W, padx=5)
         
+        # Show intermediate points checkbox
+        ttk.Checkbutton(correction_frame, text="Show climb/descent points in KML", 
+                       variable=self.show_intermediate_points).grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
         # Action Buttons Frame
         buttons_frame = ttk.Frame(main_frame)
         buttons_frame.grid(row=7, column=0, columnspan=3, pady=20)
@@ -198,6 +218,10 @@ class NavProGUI:
         # Airspace Analysis buttons (second row)  
         analysis_buttons_frame = ttk.Frame(buttons_frame)
         analysis_buttons_frame.pack(pady=5)
+        
+        self.rebuild_db_btn = ttk.Button(analysis_buttons_frame, text="🔄 Rebuild Database", 
+                                        command=self.rebuild_database, style='Accent.TButton')
+        self.rebuild_db_btn.pack(side=tk.LEFT, padx=10)
         
         self.list_btn = ttk.Button(analysis_buttons_frame, text="📋 List Airspaces", 
                                   command=self.list_airspaces, style='Accent.TButton')
@@ -342,10 +366,15 @@ class NavProGUI:
             initialdir="data" if Path("data").exists() else "."
         )
         if filename:
+            old_aixm = self.aixm_file.get()
             self.aixm_file.set(filename)
             # Update AIRAC info when file is selected
             airac_info = self.get_airac_info()
             self.airac_info_var.set(airac_info)
+            
+            # Check if database needs to be rebuilt
+            if old_aixm != filename and filename:
+                self._check_and_rebuild_database(filename, old_aixm)
     
     def browse_kml(self):
         """Browse for KML flight profile file"""
@@ -501,6 +530,166 @@ class NavProGUI:
                 return "AIRAC info not found in XML"
         except Exception as e:
             return f"Error reading AIRAC info: {str(e)}"
+    
+    def _check_database_status(self) -> Dict[str, Any]:
+        """Check if database exists and matches current AIRAC"""
+        try:
+            db_path = Path("data/airspaces.db")
+            
+            status = {
+                "exists": db_path.exists(),
+                "needs_rebuild": False,
+                "airac_date": None
+            }
+            
+            if not status["exists"]:
+                return status
+                
+            # Try to determine database AIRAC date by checking creation time vs AIXM file
+            if self.aixm_file.get():
+                aixm_path = Path(self.aixm_file.get())
+                if aixm_path.exists():
+                    db_mtime = db_path.stat().st_mtime
+                    aixm_mtime = aixm_path.stat().st_mtime
+                    
+                    # If AIXM file is newer than database, suggest rebuild
+                    if aixm_mtime > db_mtime:
+                        status["needs_rebuild"] = True
+                        
+            return status
+            
+        except Exception as e:
+            return {"exists": False, "needs_rebuild": True, "airac_date": None}
+    
+    def _check_and_rebuild_database(self, new_aixm_file: str, old_aixm_file: str):
+        """Check if database needs to be rebuilt for new AIRAC and rebuild if needed"""
+        try:
+            db_path = Path("data/airspaces.db")
+            
+            # Always rebuild if different AIRAC file is selected
+            if new_aixm_file != old_aixm_file:
+                # Extract effective dates to compare
+                new_airac_date = self._extract_airac_date(new_aixm_file)
+                old_airac_date = self._extract_airac_date(old_aixm_file) if old_aixm_file else None
+                
+                if new_airac_date != old_airac_date:
+                    self.log_info(f"🔄 New AIRAC cycle detected: {new_airac_date}")
+                    self.log_info("   Database rebuild required for new AIRAC data")
+                    
+                    # Ask user for confirmation
+                    response = messagebox.askyesno(
+                        "Database Rebuild Required",
+                        f"A different AIRAC cycle has been selected:\n\n"
+                        f"Previous: {old_airac_date or 'None'}\n"
+                        f"New: {new_airac_date}\n\n"
+                        f"The airspace database needs to be rebuilt to match the new AIRAC data.\n"
+                        f"This may take a few minutes.\n\n"
+                        f"Rebuild database now?",
+                        icon="question"
+                    )
+                    
+                    if response:
+                        self._rebuild_database_threaded(new_aixm_file)
+                    else:
+                        self.log_warning("⚠️ Database not rebuilt - airspace data may be inconsistent")
+                        self.log_warning("   Manual rebuild recommended before airspace analysis")
+                        
+        except Exception as e:
+            self.log_warning(f"⚠️ Could not check database status: {str(e)}")
+    
+    def _extract_airac_date(self, aixm_file: str) -> str:
+        """Extract AIRAC effective date from AIXM file"""
+        try:
+            import xml.etree.ElementTree as ET
+            tree = ET.parse(aixm_file)
+            root = tree.getroot()
+            
+            effective_date = root.attrib.get('effective', '')
+            if effective_date and 'T' in effective_date:
+                return effective_date.split('T')[0]
+            return effective_date or "Unknown"
+        except Exception:
+            return "Unknown"
+    
+    def _rebuild_database_threaded(self, aixm_file: str):
+        """Rebuild database in a separate thread"""
+        self.disable_buttons()
+        self.status_var.set("Rebuilding airspace database...")
+        
+        # Run in separate thread
+        thread = threading.Thread(target=self._run_database_rebuild, args=(aixm_file,))
+        thread.daemon = True
+        thread.start()
+    
+    def _run_database_rebuild(self, aixm_file: str):
+        """Run the actual database rebuild"""
+        try:
+            self.clear_output_with_header("AIRSPACE DATABASE REBUILD")
+            self.log_processing(f"🔄 Rebuilding airspace database from: {os.path.basename(aixm_file)}")
+            self.log_info(f"   AIRAC: {self._extract_airac_date(aixm_file)}")
+            self.log_output("")
+            
+            # Import the AIXM extractor
+            sys.path.append(str(Path(__file__).parent / "data_processing"))
+            from aixm_extractor import AIXMExtractor
+            
+            # Set up paths
+            db_path = str(Path("data/airspaces.db"))
+            
+            # Remove old database if it exists
+            if os.path.exists(db_path):
+                os.remove(db_path)
+                self.log_info("🗑️ Removed old database")
+            
+            # Create new database
+            self.log_processing("🏗️ Extracting airspace data from AIXM...")
+            self.log_info("   This may take several minutes depending on file size...")
+            self.log_output("")
+            
+            # Initialize extractor and run extraction
+            extractor = AIXMExtractor(aixm_file, db_path)
+            extractor.extract_complete_data()
+            
+            self.log_output("")
+            self.log_success("✅ Database rebuild completed successfully!")
+            self.log_info(f"   New database: {os.path.basename(db_path)}")
+            self.log_info(f"   AIRAC: {self._extract_airac_date(aixm_file)}")
+            self.log_output("")
+            self.log_success("🎯 Airspace database is now ready for analysis!")
+            
+        except Exception as e:
+            self.log_error(f"❌ Database rebuild failed: {str(e)}")
+            import traceback
+            self.log_output(traceback.format_exc(), "error")
+            self.log_output("")
+            self.log_warning("⚠️ You may need to rebuild the database manually")
+            
+        finally:
+            self.root.after(0, self._analysis_complete)
+    
+    def rebuild_database(self):
+        """Manual database rebuild"""
+        if not self.aixm_file.get():
+            messagebox.showerror("Error", "Please select an AIXM XML file first.")
+            return
+            
+        if not os.path.exists(self.aixm_file.get()):
+            messagebox.showerror("Error", f"AIXM file not found: {self.aixm_file.get()}")
+            return
+        
+        # Confirm rebuild
+        response = messagebox.askyesno(
+            "Rebuild Database",
+            f"This will rebuild the airspace database from:\n\n"
+            f"{os.path.basename(self.aixm_file.get())}\n"
+            f"AIRAC: {self._extract_airac_date(self.aixm_file.get())}\n\n"
+            f"This may take several minutes.\n\n"
+            f"Continue?",
+            icon="question"
+        )
+        
+        if response:
+            self._rebuild_database_threaded(self.aixm_file.get())
 
     def correct_profile(self):
         """Run profile correction in a separate thread"""
@@ -657,6 +846,7 @@ class NavProGUI:
     def disable_buttons(self):
         """Disable all action buttons during processing"""
         self.view_profile_btn.config(state='disabled')
+        self.rebuild_db_btn.config(state='disabled')
         self.list_btn.config(state='disabled')
         self.generate_btn.config(state='disabled')
     
@@ -668,6 +858,7 @@ class NavProGUI:
     def _analysis_complete(self):
         """Re-enable buttons after analysis is complete"""
         self.view_profile_btn.config(state='normal')
+        self.rebuild_db_btn.config(state='normal')
         self.list_btn.config(state='normal')
         self.generate_btn.config(state='normal')
         self.status_var.set("Ready")
@@ -862,23 +1053,52 @@ class NavProGUI:
             # Re-enable buttons
             self.root.after(0, self._analysis_complete)
     
+    def _run_profile_correction_for_kml(self):
+        """Run profile correction specifically for KML generation (without full UI updates)"""
+        try:
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'profile-correction'))
+            from kml_profile_corrector import KMLProfileCorrector
+            
+            # Initialize corrector with settings
+            corrector = KMLProfileCorrector(
+                climb_rate_fpm=self.climb_rate.get(),
+                descent_rate_fpm=self.descent_rate.get(),
+                ground_speed_kts=self.ground_speed.get()
+            )
+            
+            # Generate corrected file path in output directory
+            kml_path = Path(self.kml_file.get())
+            output_dir = Path(self.output_dir.get())
+            self.corrected_kml_file = str(output_dir / f"{kml_path.stem}_corrected.kml")
+            
+            # Correct the profile
+            success = corrector.correct_kml_file(self.kml_file.get(), self.corrected_kml_file)
+            
+            if success:
+                self.log_info(f"✅ Corrected profile saved: {os.path.basename(self.corrected_kml_file)}")
+                return True
+            else:
+                self.log_error("❌ Profile correction failed")
+                return False
+                
+        except Exception as e:
+            self.log_error(f"❌ Error during profile correction: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def generate_kml(self):
         """Generate KML file and launch in Google Earth"""
         if not self.validate_inputs():
             return
         
-        # Use corrected profile if available, otherwise original
-        analysis_file = self.corrected_kml_file if self.corrected_kml_file and self.enable_correction.get() else self.kml_file.get()
-        
         # Disable buttons
         self.disable_buttons()
         self.status_var.set("Generating KML...")
         
-        profile_type = "corrected" if self.corrected_kml_file and self.enable_correction.get() else "original"
+        profile_type = "corrected" if self.enable_correction.get() else "original"
         self.clear_output_with_header(f"KML GENERATION - {profile_type.upper()} PROFILE")
-        
-        # Store analysis file for the thread
-        self.analysis_file = analysis_file
         
         # Run in separate thread
         thread = threading.Thread(target=self._run_kml_generation)
@@ -888,8 +1108,30 @@ class NavProGUI:
     def _run_kml_generation(self):
         """Run the actual KML generation"""
         try:
-            analysis_file = getattr(self, 'analysis_file', self.kml_file.get())
-            file_type = "corrected" if analysis_file != self.kml_file.get() else "original"
+            # If correction is enabled but no corrected file exists, generate it first
+            if self.enable_correction.get() and (not self.corrected_kml_file or not os.path.exists(self.corrected_kml_file)):
+                self.log_info("🔧 Correction enabled but no corrected profile found - generating corrected profile first...")
+                self.log_output("")
+                
+                # Run profile correction first
+                self._run_profile_correction_for_kml()
+                
+                # Check if correction was successful
+                if not self.corrected_kml_file or not os.path.exists(self.corrected_kml_file):
+                    self.log_error("❌ Failed to generate corrected profile - cannot proceed with KML generation")
+                    return
+                
+                self.log_output("")
+                self.log_info("✅ Corrected profile generated successfully")
+                self.log_output("")
+            
+            # Determine which file to use for analysis
+            if self.enable_correction.get() and self.corrected_kml_file and os.path.exists(self.corrected_kml_file):
+                analysis_file = self.corrected_kml_file
+                file_type = "corrected"
+            else:
+                analysis_file = self.kml_file.get()
+                file_type = "original"
             
             # Display AIRAC information
             airac_info = self.get_airac_info()
@@ -901,7 +1143,7 @@ class NavProGUI:
             self.log_info(f"   Output: {self.output_dir.get()}")
             self.log_output("")
             
-            # Use existing generate functionality from navpro.py
+            # Use existing generate functionality from CLI tool
             # This is similar to cmd_generate_profile but adapted for GUI
             
             # Initialize analyzer
@@ -942,9 +1184,10 @@ class NavProGUI:
             flight_name = os.path.splitext(os.path.basename(analysis_file))[0]
             output_file = Path(self.output_dir.get()) / f"flight_profile_{flight_name}_combined.kml"
             
-            # Parse flight coordinates
+            # Parse flight coordinates and waypoint names
             from core.spatial_query import KMLFlightPathParser
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(analysis_file)
+            flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(analysis_file)
             
             # Generate organized KML
             self.log_output(f"   >> Creating organized profile KML: {output_file.name}")
@@ -953,7 +1196,9 @@ class NavProGUI:
             kml_content = kml_service.generate_multiple_airspaces_kml(
                 unique_ids,
                 flight_name=flight_name,
-                flight_coordinates=flight_coordinates
+                flight_coordinates=flight_coordinates,
+                flight_waypoints=flight_waypoints,
+                show_intermediate_points=self.show_intermediate_points.get()
             )
             
             # Write KML file
@@ -1030,7 +1275,7 @@ def main():
     elif 'clam' in available_themes:
         style.theme_use('clam')
     
-    app = NavProGUI(root)
+    app = AirspaceCheckerGUI(root)
     
     try:
         root.mainloop()

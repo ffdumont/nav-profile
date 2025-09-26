@@ -1,0 +1,11 @@
+include README.md
+include LICENSE
+include requirements.txt
+include CONTRIBUTING.md
+recursive-include navpro *.py
+recursive-include data *.xml *.db
+recursive-include profile-correction *.py *.md
+recursive-include scripts *.bat *.ps1
+recursive-include distribution *.md *.bat *.spec
+global-exclude *.pyc
+global-exclude __pycache__/*

@@ -800,13 +800,13 @@ class KMLProfileCorrector:
             import sys
             import os
             
-            # Add the parent directory to the path to import navpro modules
+            # Add the parent directory to the path to import airspace checker modules
             parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            navpro_dir = os.path.join(parent_dir, 'navpro')
+            airchk_dir = os.path.join(parent_dir, 'navpro')  # Module folder still named navpro
             
-            # Add both the parent directory and navpro directory to path
+            # Add both the parent directory and module directory to path
             sys.path.insert(0, parent_dir)
-            sys.path.insert(0, navpro_dir)
+            sys.path.insert(0, airchk_dir)
             
             # Try different import paths for the flight analyzer and KML service
             try:
@@ -860,15 +860,17 @@ class KMLProfileCorrector:
             # Initialize KML service for generation
             kml_service = KMLVolumeService(db_path)
             
-            # Parse flight coordinates from the corrected KML
+            # Parse flight coordinates and waypoint names from the corrected KML
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(output_file)
+            flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(output_file)
             
             # Generate organized KML with flight path and airspaces
             flight_name = os.path.splitext(os.path.basename(output_file))[0]
             kml_content = kml_service.generate_multiple_airspaces_kml(
                 unique_ids, 
                 flight_name=flight_name,
-                flight_coordinates=flight_coordinates
+                flight_coordinates=flight_coordinates,
+                flight_waypoints=flight_waypoints
             )
             
             # Write KML file

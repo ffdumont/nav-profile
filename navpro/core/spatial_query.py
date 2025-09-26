@@ -228,6 +228,67 @@ class KMLFlightPathParser:
     """Parse KML flight path and extract coordinates with altitudes"""
     
     @staticmethod
+    def parse_kml_waypoints_with_names(kml_file_path: str) -> List[Tuple[str, float, float, float]]:
+        """Extract waypoint names and coordinates from KML file
+        
+        Returns:
+            List of (name, lon, lat, alt_ft) tuples
+        """
+        try:
+            # Read the file content
+            with open(kml_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Clean up namespace issues
+            import re
+            cleaned_content = re.sub(r'gx:', '', content)  # Remove gx: prefix
+            cleaned_content = re.sub(r'xmlns:gx="[^"]*"', '', cleaned_content)  # Remove gx namespace
+            
+            root = ET.fromstring(cleaned_content)
+            waypoints = []
+            
+            # First try to get waypoints from individual Point placemarks
+            for placemark in root.findall('.//{http://www.opengis.net/kml/2.2}Placemark'):
+                name_elem = placemark.find('.//{http://www.opengis.net/kml/2.2}name')
+                point_elem = placemark.find('.//{http://www.opengis.net/kml/2.2}Point')
+                coords_elem = placemark.find('.//{http://www.opengis.net/kml/2.2}coordinates') if point_elem is not None else None
+                
+                if name_elem is not None and coords_elem is not None:
+                    name = name_elem.text.strip() if name_elem.text else "Waypoint"
+                    coords_text = coords_elem.text.strip()
+                    
+                    # Parse coordinates
+                    if coords_text and ',' in coords_text:
+                        coord_parts = coords_text.split(',')
+                        if len(coord_parts) >= 3:
+                            try:
+                                lon = float(coord_parts[0])
+                                lat = float(coord_parts[1])
+                                alt_m = float(coord_parts[2])
+                                alt_ft = alt_m * 3.28084  # Convert to feet
+                                waypoints.append((name, lon, lat, alt_ft))
+                            except ValueError:
+                                continue
+            
+            # If no waypoints from points, try to get from LineString and generate names
+            if not waypoints:
+                coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file_path)
+                waypoints = [(f"WP{i+1:02d}", lon, lat, alt_ft) for i, (lon, lat, alt_ft) in enumerate(coordinates)]
+            
+            if waypoints:
+                print(f"Extracted {len(waypoints)} waypoints with names")
+                return waypoints
+            else:
+                print("No waypoints found in KML")
+                return []
+                
+        except Exception as e:
+            print(f"Error parsing KML waypoints: {e}")
+            # Fallback to coordinates without names
+            coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file_path)
+            return [(f"WP{i+1:02d}", lon, lat, alt_ft) for i, (lon, lat, alt_ft) in enumerate(coordinates)]
+
+    @staticmethod
     def parse_kml_coordinates(kml_file_path: str) -> List[Tuple[float, float, float]]:
         """Extract coordinates from KML file"""
         try:

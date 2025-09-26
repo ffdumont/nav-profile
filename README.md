@@ -1,4 +1,4 @@
-# 🛩️ Nav-Profile - Professional Aviation Navigation Suite
+# 🛩️ Airspace Checker - Professional Flight Profile & Airspace Analysis Suite
 
 ⚠️ **IMPORTANT AVIATION SAFETY DISCLAIMER** ⚠️
 > **FOR EDUCATIONAL AND FLIGHT PLANNING PURPOSES ONLY**
@@ -12,10 +12,10 @@ Suite complète d'outils de navigation aéronautique pour l'analyse de fichiers 
 ## 🚀 Quick Start
 
 ### Option 1: Windows Desktop Application (Recommended)
-1. **Download**: Get `NavPro_v1.0.x_Windows.zip` from `distribution/releases/`
-2. **Extract**: Unzip to any folder (e.g., `C:\NavPro\`)
-3. **Run**: Double-click `NavPro.exe` - No Python installation required!
-4. **Enhanced**: Use `Launch_NavPro.bat` for optimal experience
+1. **Download**: Get `AirCheck_v1.0.x_Windows.zip` from `distribution/releases/`
+2. **Extract**: Unzip to any folder (e.g., `C:\AirCheck\`)
+3. **Run**: Double-click `AirCheck.exe` - No Python installation required!
+4. **Enhanced**: Use `Launch_AirCheck.bat` for optimal experience
 
 ### Option 2: Profile Correction Tools
 ```bash
@@ -34,7 +34,7 @@ python profile-correction/kml_profile_viewer.py corrected.kml
 
 ```
 nav-profile/
-├── 🛩️ NavPro Core Application
+├── 🛩️ Airspace Checker Core Application
 │   ├── navpro/
 │   │   ├── navpro.py                   # Command-line interface
 │   │   ├── navpro_gui.py               # Windows GUI application
@@ -51,7 +51,7 @@ nav-profile/
 │
 ├── 📋 Launch Scripts
 │   ├── scripts/
-│   │   ├── navpro.bat / navpro.ps1     # NavPro launchers
+│   │   ├── airchk.bat / airchk.ps1     # Airspace Checker launchers
 │   │   ├── kml_corrector.bat           # KML corrector launcher
 │   │   └── kml_viewer.bat              # KML viewer launcher
 │
@@ -60,9 +60,9 @@ nav-profile/
 │   │   ├── build_scripts/              # Build automation
 │   │   ├── releases/                   # Windows release packages
 │   │   │   ├── current/                # Latest release
-│   │   │   │   ├── NavPro.exe          # Standalone Windows app
-│   │   │   │   └── Launch_NavPro.bat   # Enhanced launcher
-│   │   │   └── NavPro_v1.0.x_Windows.zip
+│   │   │   │   ├── AirCheck.exe          # Standalone Windows app
+│   │   │   │   └── Launch_AirCheck.bat   # Enhanced launcher
+│   │   │   └── AirCheck_v1.0.x_Windows.zip
 │   │   └── build/, dist/               # Build artifacts
 │
 ├── 📁 Data & Documentation
@@ -75,7 +75,7 @@ nav-profile/
 
 ## 🎯 Key Features
 
-### 🛩️ NavPro Airspace Analysis
+### 🛩️ Airspace Checker Analysis
 - **Professional Windows GUI**: Clean, intuitive desktop application
 - **Critical Airspace Detection**: Automatic highlighting of Class A, Prohibited (P), and Restricted (R) zones  
 - **Google Earth Integration**: Auto-launch with organized KML folders by airspace type
@@ -95,8 +95,8 @@ nav-profile/
 
 ## 📋 Usage Examples
 
-### NavPro GUI Workflow
-1. **Launch**: Double-click `NavPro.exe`
+### Airspace Checker GUI Workflow
+1. **Launch**: Double-click `AirCheck.exe`
 2. **Load Files**: 
    - Browse for AIXM XML airspace database
    - Select KML flight profile (route or trace)
@@ -152,7 +152,7 @@ Generated 14 corrected points:
 
 ## ⚠️ Critical Airspace Detection
 
-NavPro automatically identifies and warns about dangerous airspaces:
+Airspace Checker automatically identifies and warns about dangerous airspaces:
 
 **GUI Analysis Report Example:**
 ```
@@ -228,7 +228,7 @@ CLASS A AIRSPACE - IFR clearance required:
 
 ### For End Users
 1. **Download**: Get the latest Windows release from `distribution/releases/`
-2. **Extract**: Unzip and run `NavPro.exe` - No Python installation required
+2. **Extract**: Unzip and run `AirCheck.exe` - No Python installation required
 
 ### For Developers
 ```bash
@@ -245,7 +245,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 # Test installation
-python navpro/navpro.py help
+airchk help
 python profile-correction/kml_profile_corrector.py --help
 ```
 
@@ -309,7 +309,7 @@ nav-profile/
 ### NavPro Airspace Analysis
 1. **Download**: Get the latest Windows release from `distribution/releases/`
 2. **Extract**: Unzip to any folder  
-3. **Run**: Double-click `NavPro.exe` or use GUI with `python navpro_gui.py`
+3. **Run**: Double-click `AirCheck.exe` or use GUI with `python navpro_gui.py`
 
 ### Altitude Profile Correction
 ```bash
@@ -344,16 +344,16 @@ python kml_profile_viewer.py corrected.kml -o profile.png
 
 ```bash
 # Basic analysis with default corridor (±1000ft, ±10NM)
-python navpro.py profile flight.kml
+airchk profile flight.kml
 
 # Custom corridor analysis  
-python navpro.py profile flight.kml --corridor-height 500 --corridor-width 5
+airchk profile flight.kml --corridor-height 500 --corridor-width 5
 
 # Export to JSON
-python navpro.py profile flight.kml --output analysis.json
+airchk profile flight.kml --output analysis.json
 
 # Show help
-python navpro.py help profile
+airchk help profile
 ```
 
 ## 📊 Example Output

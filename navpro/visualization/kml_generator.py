@@ -136,6 +136,40 @@ class KMLVolumeService:
         
         return coordinates
 
+    def _create_vertical_walls(self, coordinates: List[Tuple[float, float]], 
+                             min_altitude_m: float, max_altitude_m: float) -> List[ET.Element]:
+        """Create vertical wall polygons connecting top and bottom surfaces"""
+        walls = []
+        
+        for i in range(len(coordinates) - 1):  # -1 because last coordinate equals first
+            # Get two consecutive points
+            lat1, lon1 = coordinates[i]
+            lat2, lon2 = coordinates[i + 1]
+            
+            # Create a wall polygon (rectangular face between two consecutive edge points)
+            wall_polygon = ET.Element('Polygon')
+            wall_altitude_mode = ET.SubElement(wall_polygon, 'altitudeMode')
+            wall_altitude_mode.text = 'absolute'
+            
+            wall_outer_boundary = ET.SubElement(wall_polygon, 'outerBoundaryIs')
+            wall_linear_ring = ET.SubElement(wall_outer_boundary, 'LinearRing')
+            wall_coord_elem = ET.SubElement(wall_linear_ring, 'coordinates')
+            
+            # Create wall coordinates (4 corners of rectangular wall)
+            # Bottom-left, Bottom-right, Top-right, Top-left, Bottom-left (to close)
+            wall_coords = [
+                f"{lon1},{lat1},{min_altitude_m}",  # Bottom-left
+                f"{lon2},{lat2},{min_altitude_m}",  # Bottom-right  
+                f"{lon2},{lat2},{max_altitude_m}",  # Top-right
+                f"{lon1},{lat1},{max_altitude_m}",  # Top-left
+                f"{lon1},{lat1},{min_altitude_m}"   # Close the polygon
+            ]
+            
+            wall_coord_elem.text = ' '.join(wall_coords)
+            walls.append(wall_polygon)
+            
+        return walls
+
     def _create_kml_polygon(self, coordinates: List[Tuple[float, float]], 
                            min_altitude_m: Optional[float], max_altitude_m: Optional[float],
                            name: str, description: str, 
@@ -154,9 +188,9 @@ class KMLVolumeService:
         desc_elem.text = description
         
         # Create Polygon or MultiGeometry for proper 3D volume representation
-        if (min_altitude_m is not None and min_altitude_m > 0 and 
-            max_altitude_m is not None and max_altitude_m > min_altitude_m):
-            # Create MultiGeometry with top and bottom surfaces for elevated airspace
+        if (min_altitude_m is not None and max_altitude_m is not None and 
+            max_altitude_m > min_altitude_m):
+            # Create MultiGeometry with top and bottom surfaces plus vertical walls for elevated airspace
             multigeometry = ET.SubElement(placemark, 'MultiGeometry')
             
             # Top surface at max altitude
@@ -183,6 +217,11 @@ class KMLVolumeService:
             for lat, lon in reversed(coordinates):
                 bottom_coord_text.append(f"{lon},{lat},{min_altitude_m}")
             bottom_coord_elem.text = ' '.join(bottom_coord_text)
+            
+            # Add vertical walls connecting top and bottom surfaces
+            wall_polygons = self._create_vertical_walls(coordinates, min_altitude_m, max_altitude_m)
+            for wall in wall_polygons:
+                multigeometry.append(wall)
             
         else:
             # Use traditional extrusion for ground-based or single-altitude airspaces
@@ -359,6 +398,9 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL"""
                     longitudes.append(lon)
                     latitudes.append(lat)
                 
+                # Initialize geometry note
+                geometry_note = ""
+                
                 # Validate geometry - check for suspicious outliers
                 if len(longitudes) > 3:
                     import statistics
@@ -375,7 +417,6 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL"""
                             filtered_coords.append((lat, lon))
                     
                     # If we have significant outliers, mention it in description
-                    geometry_note = ""
                     if outliers and len(filtered_coords) >= 3:
                         geometry_note = f"\nNote: {len(outliers)} outlier vertices excluded from geometry"
                         coordinates = filtered_coords  # Use filtered coordinates
@@ -415,13 +456,18 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         ET.indent(kml, space="  ")
         return ET.tostring(kml, encoding='unicode')
 
-    def generate_multiple_airspaces_kml(self, airspace_ids: List[int], flight_name: str = None, flight_coordinates: List[tuple] = None) -> str:
+    def generate_multiple_airspaces_kml(self, airspace_ids: List[int], flight_name: str = None, 
+                                      flight_coordinates: List[tuple] = None,
+                                      flight_waypoints: List[tuple] = None, 
+                                      show_intermediate_points: bool = False) -> str:
         """Generate KML for multiple airspaces organized by type into folders
         
         Args:
             airspace_ids: List of airspace IDs to include
             flight_name: Name of the flight path for document title
             flight_coordinates: List of (lon, lat, alt_ft) tuples for original flight path
+            flight_waypoints: List of (name, lon, lat, alt_ft) tuples for waypoint names
+            show_intermediate_points: Whether to show intermediate climb/descent points
         """
         # Create KML document
         kml = ET.Element('kml', xmlns="http://www.opengis.net/kml/2.2")
@@ -501,15 +547,44 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
                     continue
         
         # Add flight path at the top level if coordinates are provided
-        if flight_coordinates:
-            self._add_flight_path_to_kml(document, flight_coordinates, flight_name or "Flight Path")
+        if flight_coordinates or flight_waypoints:
+            # Determine which data to use for the flight path
+            if flight_waypoints:
+                # Use waypoints (corrected profile) - extract coordinates from waypoints
+                waypoints_to_use = flight_waypoints
+                coords_to_use = [(lon, lat, alt_ft) for name, lon, lat, alt_ft in flight_waypoints]
+            else:
+                # Fall back to coordinates (original profile)
+                waypoints_to_use = [(f"WP{i+1:02d}", lon, lat, alt_ft) for i, (lon, lat, alt_ft) in enumerate(flight_coordinates)]
+                coords_to_use = flight_coordinates
+            
+            # Filter intermediate climb/descent points if requested
+            if not show_intermediate_points and waypoints_to_use:
+                filtered_waypoints = []
+                filtered_coords = []
+                for i, (name, lon, lat, alt_ft) in enumerate(waypoints_to_use):
+                    # Hide intermediate climb/descent points (those starting with "Climb_" or "Descent_")
+                    if not (name.startswith("Climb_") or name.startswith("Descent_")):
+                        filtered_waypoints.append((name, lon, lat, alt_ft))
+                    # Always include coordinates in the flight path line (even for intermediate points)
+                    # This ensures the flight path line includes all corrected altitude points
+                waypoints_to_use = filtered_waypoints
+                # coords_to_use remains unchanged to preserve complete flight path with intermediate points
+            
+            self._add_flight_path_to_kml(document, coords_to_use, flight_name or "Flight Path", waypoints_to_use)
         
         # Convert to string
         ET.indent(kml, space="  ")
         return ET.tostring(kml, encoding='unicode')
 
-    def _add_flight_path_to_kml(self, document: ET.Element, flight_coordinates: List[tuple], flight_name: str):
-        """Add flight path LineString and waypoints to KML document with corrected KML styling"""
+    def _add_flight_path_to_kml(self, document: ET.Element, flight_coordinates: List[tuple], 
+                              flight_name: str, flight_waypoints: List[tuple] = None):
+        """Add flight path LineString and waypoints to KML document with corrected KML styling
+        
+        Args:
+            flight_coordinates: List of (lon, lat, alt_ft) tuples for route line
+            flight_waypoints: List of (name, lon, lat, alt_ft) tuples for waypoint names
+        """
         
         # Add styles first (yellow line and waypoint styles)
         self._add_flight_path_styles(document)
@@ -556,15 +631,17 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         coordinates.text = " ".join(coord_strings)
         
         # Add waypoint placemarks
-        for i, (lon, lat, alt_ft) in enumerate(flight_coordinates):
+        waypoints_to_display = flight_waypoints if flight_waypoints else [(f"WP{i+1:02d}", lon, lat, alt_ft) for i, (lon, lat, alt_ft) in enumerate(flight_coordinates)]
+        
+        for name, lon, lat, alt_ft in waypoints_to_display:
             waypoint_placemark = ET.SubElement(flight_folder, 'Placemark')
             
-            # Use generic waypoint names (WP01, WP02, etc.)
+            # Use the actual waypoint name from corrected profile
             wp_name = ET.SubElement(waypoint_placemark, 'name')
-            wp_name.text = f"WP{i+1:02d}"
+            wp_name.text = name
             
             wp_desc = ET.SubElement(waypoint_placemark, 'description')
-            wp_desc.text = f"Waypoint {i+1} - {int(alt_ft)} ft"
+            wp_desc.text = f"{name} - {int(alt_ft)} ft"
             
             # Use yellow pushpin style
             wp_style_url = ET.SubElement(waypoint_placemark, 'styleUrl')

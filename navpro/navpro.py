@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NavPro - Navigation Profile Command Line Tool
+Airspace Checker - Flight Profile & Airspace Analysis Command Line Tool
 Access airspace services and generate KML volumes with consistent subcommand structure
 """
 
@@ -28,37 +28,48 @@ except ImportError:
 # Add production directory to path
 sys.path.append(str(Path(__file__).parent / "production"))
 
+# Import version information
+try:
+    from version import get_dev_version
+    VERSION = get_dev_version()  # CLI uses development version (git hash)
+except (ImportError, AttributeError):
+    try:
+        from .version import get_dev_version
+        VERSION = get_dev_version()
+    except (ImportError, AttributeError):
+        VERSION = "1.2.0"
+
 from visualization.kml_generator import KMLVolumeService
 
 
 def create_parser():
     """Create the main argument parser with subcommands"""
     parser = argparse.ArgumentParser(
-        prog="navpro",
-        description="NavPro - Navigation Profile Command Line Tool",
+        prog="airchk",
+        description=f"Airspace Checker v{VERSION} - Flight Profile & Airspace Analysis Command Line Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 Examples:
-  navpro list --fix-profile flight.kml                # Fix profile and analyze corrected airspace crossings
-  navpro generate --fix-profile flight.kml            # Fix profile and generate KML for corrected crossings
+  airchk list --fix-profile flight.kml                # Fix profile and analyze corrected airspace crossings
+  airchk generate --fix-profile flight.kml            # Fix profile and generate KML for corrected crossings
   
-  navpro list --name "CHEVREUSE"                    # List airspaces matching pattern
-  navpro list --profile flight.kml                  # List relevant airspaces crossed (filtered)
-  navpro list --profile flight.kml --filter-types ""     # List ALL airspaces crossed (no filter)
-  navpro list --profile flight.kml --corridor-height 1000 # Custom corridor ±1000ft
-  navpro list --id 4749                             # Show details for specific ID
-  navpro list --all                                 # List all airspaces (limited)
+  airchk list --name "CHEVREUSE"                    # List airspaces matching pattern
+  airchk list --profile flight.kml                  # List relevant airspaces crossed (filtered)
+  airchk list --profile flight.kml --filter-types ""     # List ALL airspaces crossed (no filter)
+  airchk list --profile flight.kml --corridor-height 1000 # Custom corridor ±1000ft
+  airchk list --id 4749                             # Show details for specific ID
+  airchk list --all                                 # List all airspaces (limited)
   
-  navpro generate --id 4749                         # Generate KML for single airspace  
-  navpro generate --profile flight.kml              # Generate KML for relevant airspaces crossed
-  navpro generate --profile flight.kml --filter-types "SECTOR"  # Filter only SECTOR types
-  navpro generate --name "CHEVREUSE"                # Generate KML for all matching
-  navpro generate --ids 4749 4750 4751              # Generate combined KML
+  airchk generate --id 4749                         # Generate KML for single airspace  
+  airchk generate --profile flight.kml              # Generate KML for relevant airspaces crossed
+  airchk generate --profile flight.kml --filter-types "SECTOR"  # Filter only SECTOR types
+  airchk generate --name "CHEVREUSE"                # Generate KML for all matching
+  airchk generate --ids 4749 4750 4751              # Generate combined KML
   
-  navpro stats                             # Show database statistics
-  navpro help                              # Show detailed help
+  airchk stats                             # Show database statistics
+  airchk help                              # Show detailed help
 
-NavPro provides professional navigation services including:
+Airspace Checker provides professional flight planning services including:
 - Altitude profile correction with realistic climb/descent rates
 - Airspace search and listing with flight path analysis
 - 3D KML volume visualization  
@@ -70,6 +81,11 @@ NavPro provides professional navigation services including:
     )
     
     # Global options
+    parser.add_argument(
+        '--version', 
+        action='version', 
+        version=f'%(prog)s {VERSION}'
+    )
     parser.add_argument(
         '--verbose', '-v', action='store_true',
         help='Verbose output with detailed information'
@@ -706,16 +722,18 @@ def cmd_generate_profile(args):
             print(f"   >> Generating organized profile KML: {combined_filename}...")
             print(f"      >> Organizing airspaces into KML folders by type")
             
-            # Parse flight coordinates for inclusion in combined KML
+            # Parse flight coordinates and waypoint names for inclusion in combined KML
             from core.spatial_query import KMLFlightPathParser
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
+            flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(kml_file)
             
             # Use generate_multiple_airspaces_kml method with flight path info
             # This now organizes airspaces by type into KML folders
             kml_content = kml_service_gen.generate_multiple_airspaces_kml(
                 unique_ids, 
                 flight_name=flight_name,
-                flight_coordinates=flight_coordinates if flight_coordinates else None
+                flight_coordinates=flight_coordinates if flight_coordinates else None,
+                flight_waypoints=flight_waypoints if flight_waypoints else None
             )
             
             # Write to file
@@ -786,13 +804,13 @@ def show_help(topic=None):
 Search and list airspaces by various criteria, or analyze flight paths.
 
 BASIC USAGE:
-  navpro list --name PATTERN       # List airspaces matching name pattern
-  navpro list --id ID              # Show details for specific airspace
-  navpro list --type TYPE          # List airspaces of specific type
-  navpro list --all                # List all airspaces (limited)
+  airchk list --name PATTERN       # List airspaces matching name pattern
+  airchk list --id ID              # Show details for specific airspace
+  airchk list --type TYPE          # List airspaces of specific type
+  airchk list --all                # List all airspaces (limited)
 
 FLIGHT PATH ANALYSIS:
-  navpro list --profile flight.kml # List airspaces crossed chronologically
+  airchk list --profile flight.kml # List airspaces crossed chronologically
   
   Optional corridor settings:
   --corridor-height 1000           # Vertical corridor ±1000 ft (default: 500)
@@ -805,9 +823,9 @@ OUTPUT OPTIONS:
   --quiet, -q                      # Minimal output
 
 EXAMPLES:
-  navpro list --name "CHEVREUSE"           # Find CHEVREUSE airspaces
-  navpro list --type TMA --limit 20        # Show 20 TMAs
-  navpro list --profile route.kml --verbose # Analyze flight with details
+  airchk list --name "CHEVREUSE"           # Find CHEVREUSE airspaces
+  airchk list --type TMA --limit 20        # Show 20 TMAs
+  airchk list --profile route.kml --verbose # Analyze flight with details
 """)
     elif topic == 'generate':
         print("""
@@ -816,13 +834,13 @@ EXAMPLES:
 Generate 3D KML volumes for airspaces or flight path crossings.
 
 BASIC USAGE:
-  navpro generate --id ID          # Generate KML for single airspace
-  navpro generate --ids ID1 ID2    # Generate for multiple airspaces  
-  navpro generate --name PATTERN   # Generate for matching airspaces
-  navpro generate --type TYPE      # Generate for airspace type
+  airchk generate --id ID          # Generate KML for single airspace
+  airchk generate --ids ID1 ID2    # Generate for multiple airspaces  
+  airchk generate --name PATTERN   # Generate for matching airspaces
+  airchk generate --type TYPE      # Generate for airspace type
 
 FLIGHT PATH GENERATION:
-  navpro generate --profile flight.kml # Generate KML for crossed airspaces
+  airchk generate --profile flight.kml # Generate KML for crossed airspaces
   
   Optional corridor settings:
   --corridor-height 1000           # Vertical corridor ±1000 ft (default: 500)
@@ -835,9 +853,9 @@ OUTPUT OPTIONS:
   --combined-only                  # Generate only combined file
 
 EXAMPLES:
-  navpro generate --id 4749                     # Single airspace
-  navpro generate --profile route.kml           # Flight path analysis
-  navpro generate --name "PARIS" --individual   # All PARIS airspaces
+  airchk generate --id 4749                     # Single airspace
+  airchk generate --profile route.kml           # Flight path analysis
+  airchk generate --name "PARIS" --individual   # All PARIS airspaces
 """)
     elif topic == 'stats':
         print("""
@@ -846,8 +864,8 @@ EXAMPLES:
 Display database statistics and health information.
 
 USAGE:
-  navpro stats                     # Basic statistics
-  navpro stats --detailed          # Detailed breakdown by type
+  airchk stats                     # Basic statistics
+  airchk stats --detailed          # Detailed breakdown by type
 
 OUTPUT:
   - Total airspace count
@@ -855,8 +873,8 @@ OUTPUT:
   - Database health information
 """)
     else:
-        print("""
-📚 NavPro - Navigation Profile Command Line Tool
+        print(f"""
+📚 Airspace Checker v{VERSION} - Flight Profile & Airspace Analysis Command Line Tool
 
 🔧 MAIN COMMANDS:
   list        Search and display airspaces, or analyze flight paths
@@ -865,17 +883,17 @@ OUTPUT:
   help        Show this help or help for specific commands
 
 🚀 QUICK START:
-  navpro list --fix-profile data/flight.kml      # Fix profile and analyze crossings
-  navpro list --name "CHEVREUSE"           # Find CHEVREUSE airspaces
-  navpro list --profile data/flight.kml    # Analyze flight path chronologically
-  navpro generate --id 4749               # Generate KML for ID 4749
-  navpro generate --profile flight.kml    # Generate KML for crossed airspaces
-  navpro stats                             # Show database overview
+  airchk list --fix-profile data/flight.kml      # Fix profile and analyze crossings
+  airchk list --name "CHEVREUSE"           # Find CHEVREUSE airspaces
+  airchk list --profile data/flight.kml    # Analyze flight path chronologically
+  airchk generate --id 4749               # Generate KML for ID 4749
+  airchk generate --profile flight.kml    # Generate KML for crossed airspaces
+  airchk stats                             # Show database overview
 
 📖 DETAILED HELP:
-  navpro help list                         # Help for list command
-  navpro help generate                     # Help for generate command  
-  navpro help stats                        # Help for stats command
+  airchk help list                         # Help for list command
+  airchk help generate                     # Help for generate command  
+  airchk help stats                        # Help for stats command
 
 🌍 KEY FEATURES:
   - Altitude profile correction with realistic flight patterns
@@ -886,7 +904,7 @@ OUTPUT:
   - TMAs, RAS, Restricted zone detection with Flight Level support
   - Batch operations for multiple airspaces
 
-Use 'navpro COMMAND --help' for specific command options.
+Use 'airchk COMMAND --help' for specific command options.
 """)
 
 
