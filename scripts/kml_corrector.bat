@@ -1,3 +1,3 @@
 @echo off
-REM Script lanceur pour le correcteur d'altitude KML
-python "%~dp0..\altitude-correction\kml_altitude_corrector.py" %*
+REM Script lanceur pour le correcteur de profil KML
+python "%~dp0..\profile-correction\kml_profile_corrector.py" %*

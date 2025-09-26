@@ -1,3 +1,3 @@
 @echo off
-REM Script lanceur pour le visualiseur d'altitude KML
-python "%~dp0..\altitude-correction\kml_altitude_viewer.py" %*
+REM Script lanceur pour le visualiseur de profil KML
+python "%~dp0..\profile-correction\kml_altitude_viewer.py" %*
