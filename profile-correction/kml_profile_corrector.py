@@ -68,9 +68,9 @@ class Branch:
         
         # Add warning if unreachable
         if self.is_unreachable:
-            action_desc += f" ⚠️ UNREACHABLE: {self.unreachable_reason}"
+            action_desc += f" WARNING: UNREACHABLE: {self.unreachable_reason}"
             
-        return f"{self.start_point.name} → {self.end_point.name}: {action_desc} ({self.distance_nm:.1f} NM)"
+        return f"{self.start_point.name} -> {self.end_point.name}: {action_desc} ({self.distance_nm:.1f} NM)"
 
 
 class KMLProfileCorrector:
@@ -554,7 +554,7 @@ class KMLProfileCorrector:
         print("-" * 80)
         print(f"Total branches: {len(branches)}")
         if unreachable_count > 0:
-            print(f"⚠️  WARNING: {unreachable_count} branches have UNREACHABLE altitude targets!")
+            print(f"WARNING: {unreachable_count} branches have UNREACHABLE altitude targets!")
             print("   Consider adjusting climb/descent rates or reviewing the flight profile.")
         print(f"{'='*80}")
     
@@ -781,15 +781,18 @@ class KMLProfileCorrector:
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(corrected_content)
-            print(f"✅ Corrected KML file saved: {output_file}")
+            print(f"SUCCESS: Corrected KML file saved: {output_file}")
             print(f"   Use kml_profile_viewer.py to visualize the corrected profile.")
         except Exception as e:
-            print(f"❌ Error saving corrected KML file: {e}")
+            print(f"ERROR: Error saving corrected KML file: {e}")
             print(f"   Attempted to save to: {output_file}")
             raise
         
         # Generate airspace KML in the same directory
         self.generate_airspace_kml(input_file, output_file)
+        
+        # Return success
+        return True
     
     def generate_airspace_kml(self, input_file: str, output_file: str):
         """Generate airspace KML file in the same directory as the corrected profile"""
@@ -818,7 +821,7 @@ class KMLProfileCorrector:
                     from navpro.core.spatial_query import KMLFlightPathParser
                     db_path = os.path.join(parent_dir, 'data', 'airspaces.db')
                 except ImportError as e2:
-                    print(f"⚠️  Could not import required modules: {e1}, {e2}")
+                    print(f"WARNING: Could not import required modules: {e1}, {e2}")
                     print("   The corrected profile KML was still saved successfully.")
                     return
             
@@ -826,7 +829,7 @@ class KMLProfileCorrector:
             
             # Check if database exists
             if not os.path.exists(db_path):
-                print(f"⚠️  Airspace database not found: {db_path}")
+                print(f"WARNING: Airspace database not found: {db_path}")
                 print("   The corrected profile KML was still saved successfully.")
                 return
             
@@ -839,7 +842,7 @@ class KMLProfileCorrector:
             crossings = analyzer.get_chronological_crossings(output_file, sample_distance_km=5.0)
             
             if not crossings:
-                print(f"⚠️  No airspace crossings found in the corrected flight profile")
+                print(f"WARNING: No airspace crossings found in the corrected flight profile")
                 print("   The corrected profile KML was still saved successfully.")
                 return
             
@@ -872,14 +875,14 @@ class KMLProfileCorrector:
             with open(airspace_kml_file, 'w', encoding='utf-8') as f:
                 f.write(kml_content)
             
-            print(f"✅ Airspace KML file saved: {airspace_kml_file}")
+            print(f"SUCCESS: Airspace KML file saved: {airspace_kml_file}")
             print(f"   Load both KML files in Google Earth to see the complete flight analysis.")
             
         except ImportError as e:
-            print(f"⚠️  Could not generate airspace KML: Missing required modules ({e})")
+            print(f"WARNING: Could not generate airspace KML: Missing required modules ({e})")
             print("   The corrected profile KML was still saved successfully.")
         except Exception as e:
-            print(f"⚠️  Could not generate airspace KML: {e}")
+            print(f"WARNING: Could not generate airspace KML: {e}")
             print("   The corrected profile KML was still saved successfully.")
 
 

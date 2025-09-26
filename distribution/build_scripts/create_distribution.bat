@@ -12,12 +12,12 @@ if exist "NavPro_Distribution" rmdir /s /q "NavPro_Distribution"
 mkdir "NavPro_Distribution"
 
 REM Copy executable
-if exist "dist\navpro_gui.exe" (
+if exist "dist\NavPro.exe" (
     echo Copying executable...
-    copy "dist\navpro_gui.exe" "NavPro_Distribution\NavPro.exe"
+    copy "dist\NavPro.exe" "NavPro_Distribution\NavPro.exe"
     echo ✓ NavPro.exe copied
 ) else (
-    echo ❌ ERROR: navpro_gui.exe not found in dist folder!
+    echo ❌ ERROR: NavPro.exe not found in dist folder!
     echo Please run build_gui.bat first.
     pause
     exit /b 1
