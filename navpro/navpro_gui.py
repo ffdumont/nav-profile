@@ -759,11 +759,27 @@ class AirspaceCheckerGUI:
     def _run_profile_correction(self):
         """Run the actual profile correction"""
         try:
-            # Add profile-correction directory to path
-            profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
-            sys.path.insert(0, str(profile_correction_dir))
-            
-            from kml_profile_corrector import KMLProfileCorrector
+            # Import KMLProfileCorrector - handle both dev and packaged environments
+            try:
+                # Try adding profile-correction directory to path (for development)
+                profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
+                sys.path.insert(0, str(profile_correction_dir))
+                from kml_profile_corrector import KMLProfileCorrector
+                self.log_info("✅ Profile corrector imported successfully (development path)")
+            except ImportError as e1:
+                try:
+                    # Try direct import (for packaged executable with included modules)
+                    import kml_profile_corrector
+                    from kml_profile_corrector import KMLProfileCorrector
+                    self.log_info("✅ Profile corrector imported successfully (direct import)")
+                except ImportError as e2:
+                    try:
+                        # Try alternative path for packaged executable
+                        sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
+                        from kml_profile_corrector import KMLProfileCorrector
+                        self.log_info("✅ Profile corrector imported successfully (alternative path)")
+                    except ImportError as e3:
+                        raise ImportError(f"Failed to import KMLProfileCorrector after all attempts: {e1}, {e2}, {e3}")
             
             self.clear_output_with_header("PROFILE CORRECTION")
             self.log_processing(f"🔧 Correcting flight profile: {os.path.basename(self.kml_file.get())}")
@@ -1110,9 +1126,23 @@ class AirspaceCheckerGUI:
     def _run_profile_correction_for_kml(self):
         """Run profile correction specifically for KML generation (without full UI updates)"""
         try:
-            import sys
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'profile-correction'))
-            from kml_profile_corrector import KMLProfileCorrector
+            # Import KMLProfileCorrector - handle both dev and packaged environments
+            try:
+                # Try adding profile-correction directory to path (for development)
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'profile-correction'))
+                from kml_profile_corrector import KMLProfileCorrector
+            except ImportError as e1:
+                try:
+                    # Try direct import (for packaged executable with included modules)
+                    import kml_profile_corrector
+                    from kml_profile_corrector import KMLProfileCorrector
+                except ImportError as e2:
+                    try:
+                        # Try alternative path for packaged executable
+                        sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
+                        from kml_profile_corrector import KMLProfileCorrector
+                    except ImportError as e3:
+                        raise ImportError(f"Failed to import KMLProfileCorrector for KML generation: {e1}, {e2}, {e3}")
             
             # Initialize corrector with settings
             corrector = KMLProfileCorrector(
