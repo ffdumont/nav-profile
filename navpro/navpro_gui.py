@@ -646,7 +646,6 @@ class AirspaceCheckerGUI:
                     self.log_info(f"   Absolute import failed: {e2}")
                     try:
                         # Fallback - add parent directory to path and import
-                        import sys
                         parent_dir = str(Path(__file__).parent.parent)
                         if parent_dir not in sys.path:
                             sys.path.insert(0, parent_dir)
