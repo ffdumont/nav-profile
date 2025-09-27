@@ -18,7 +18,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def parse_coordinate_aixm(coord_str: str) -> Optional[float]:
-    """Parse une coordonnée au format AIXM (DDMMSS.ssH ou DDDMMSS.ssH)"""
+    """Parse une coordonnée au format AIXM - supporte plusieurs formats:
+    - DDMMSS.ssH (ex: 510520.60N)
+    - DDDMMSS.ssH (ex: 0023243.54E)  
+    - DDMMSSN (ex: 455122N)
+    - DDDMMSSE (ex: 0052702E)
+    - DDMMSS.sH (ex: 473758.1N)
+    - DDMMSS.ssssH (ex: 480449.3284N)
+    """
     if not coord_str:
         return None
     
@@ -26,19 +33,41 @@ def parse_coordinate_aixm(coord_str: str) -> Optional[float]:
         direction = coord_str[-1].upper()
         coord_value = coord_str[:-1]
         
-        if len(coord_value) == 9:  # DDMMSS.ss
-            degrees = int(coord_value[:2])
-            minutes = int(coord_value[2:4])
-            seconds = float(coord_value[4:])
-        elif len(coord_value) == 10:  # DDDMMSS.ss
-            degrees = int(coord_value[:3])
-            minutes = int(coord_value[3:5])
-            seconds = float(coord_value[5:])
+        # Determine if this is latitude (DD) or longitude (DDD) based on length
+        if '.' in coord_value:
+            # Format with decimal point
+            integer_part, decimal_part = coord_value.split('.')
+            
+            if len(integer_part) == 6:  # DDMMSS
+                degrees = int(integer_part[:2])
+                minutes = int(integer_part[2:4])
+                seconds = int(integer_part[4:6])
+                fractional_seconds = float('0.' + decimal_part) if decimal_part else 0.0
+            elif len(integer_part) == 7:  # DDDMMSS
+                degrees = int(integer_part[:3])
+                minutes = int(integer_part[3:5])
+                seconds = int(integer_part[5:7])
+                fractional_seconds = float('0.' + decimal_part) if decimal_part else 0.0
+            else:
+                logger.warning(f"Format de coordonnée non reconnu (avec décimales): {coord_str}")
+                return None
+                
+            total_seconds = seconds + fractional_seconds
         else:
-            logger.warning(f"Format de coordonnée non reconnu: {coord_str}")
-            return None
+            # Format without decimal point
+            if len(coord_value) == 6:  # DDMMSS
+                degrees = int(coord_value[:2])
+                minutes = int(coord_value[2:4])
+                total_seconds = int(coord_value[4:6])
+            elif len(coord_value) == 7:  # DDDMMSS
+                degrees = int(coord_value[:3])
+                minutes = int(coord_value[3:5])
+                total_seconds = int(coord_value[5:7])
+            else:
+                logger.warning(f"Format de coordonnée non reconnu (sans décimales): {coord_str}")
+                return None
         
-        decimal = degrees + minutes/60 + seconds/3600
+        decimal = degrees + minutes/60 + total_seconds/3600
         
         if direction in ['S', 'W']:
             decimal = -decimal
@@ -281,16 +310,16 @@ class AIXMExtractor:
         """Extrait les vertices d'un élément Abd"""
         avx_elements = abd_element.findall('Avx')
         
-        for avx in avx_elements:
+        for sequence, avx in enumerate(avx_elements, start=1):  # Use enumeration for sequence
             try:
                 lat_elem = avx.find('geoLat')
                 lon_elem = avx.find('geoLong')
-                seq_elem = avx.find('noSeq')
+                # Remove seq_elem lookup - use enumeration instead
                 
                 if lat_elem is not None and lon_elem is not None:
                     latitude = parse_coordinate_aixm(lat_elem.text) if lat_elem.text else None
                     longitude = parse_coordinate_aixm(lon_elem.text) if lon_elem.text else None
-                    sequence = int(seq_elem.text) if seq_elem is not None and seq_elem.text else 1
+                    # sequence is now from enumerate, starting at 1
                     
                     if latitude is not None and longitude is not None:
                         cursor = conn.cursor()
@@ -384,8 +413,18 @@ class AIXMExtractor:
 def main():
     # Use relative paths based on the script location
     script_dir = Path(__file__).parent
-    xml_path = script_dir.parent / "data" / "AIXM4.5_all_FR_OM_2025-10-02.xml"
-    db_path = script_dir.parent / "data" / "airspaces.db"
+    # Go up two levels: data_processing -> navpro -> nav-profile
+    project_root = script_dir.parent.parent
+    xml_path = project_root / "data" / "AIXM4.5_all_FR_OM_2025-10-02.xml"
+    db_path = project_root / "data" / "airspaces.db"
+    
+    print(f"Project root: {project_root}")
+    print(f"XML path: {xml_path} (exists: {xml_path.exists()})")
+    print(f"DB path: {db_path}")
+    
+    if not xml_path.exists():
+        logger.error(f"AIXM file not found: {xml_path}")
+        return
     
     extractor = AIXMExtractor(str(xml_path), str(db_path))
     extractor.extract_complete_data()

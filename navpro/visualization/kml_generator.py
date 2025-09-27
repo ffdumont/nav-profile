@@ -15,7 +15,7 @@ import os
 
 # Add production directory to path for color config import
 sys.path.insert(0, os.path.dirname(__file__))
-from visualization.kml_styling import get_airspace_color, get_line_color, LINE_WIDTH
+from .kml_styling import get_airspace_color, get_line_color, LINE_WIDTH
 
 
 class KMLVolumeService:
@@ -402,7 +402,9 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL"""
                 geometry_note = ""
                 
                 # Validate geometry - check for suspicious outliers
-                if len(longitudes) > 3:
+                # Disabled aggressive outlier filtering to preserve large regional airspaces
+                # Original logic was too strict for airspaces like PARIS NORD RAS that span multiple regions
+                if False and len(longitudes) > 3:  # Disabled
                     import statistics
                     lon_median = statistics.median(longitudes)
                     lat_median = statistics.median(latitudes)

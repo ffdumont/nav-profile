@@ -5,6 +5,9 @@ Creates proper flight profile charts with NM on X-axis, ft on Y-axis
 Shows original profile with branch analysis overlay
 """
 
+# Configure matplotlib backend before importing pyplot
+import matplotlib
+matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
@@ -12,6 +15,10 @@ import math
 from typing import List, Tuple, Optional, Dict
 import argparse
 import os
+import warnings
+
+# Suppress matplotlib threading warnings
+warnings.filterwarnings('ignore', message='Starting a Matplotlib GUI outside of the main thread')
 
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -240,7 +247,25 @@ class KMLProfileViewer:
             plt.savefig(output_file, dpi=300, bbox_inches='tight')
             print(f"\nProfile visualization saved: {output_file}")
         else:
-            plt.show()
+            try:
+                plt.show(block=True)  # Block until window is closed
+            except Exception as e:
+                print(f"Warning: Could not display chart interactively: {e}")
+                # Save to temporary file as fallback
+                import tempfile
+                temp_file = os.path.join(tempfile.gettempdir(), f"flight_profile_{os.path.basename(kml_file)}.png")
+                plt.savefig(temp_file, dpi=300, bbox_inches='tight')
+                print(f"Chart saved to: {temp_file}")
+                
+                # Try to open with default image viewer
+                try:
+                    import subprocess
+                    if os.name == 'nt':  # Windows
+                        subprocess.run(['start', temp_file], shell=True, check=False)
+                    elif os.name == 'posix':  # Linux/Mac
+                        subprocess.run(['xdg-open', temp_file], check=False)
+                except:
+                    print("Please open the saved PNG file manually.")
         
         plt.close()
 

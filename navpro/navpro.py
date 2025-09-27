@@ -39,7 +39,7 @@ except (ImportError, AttributeError):
     except (ImportError, AttributeError):
         VERSION = "1.2.0"
 
-from visualization.kml_generator import KMLVolumeService
+from .visualization.kml_generator import KMLVolumeService
 
 
 def create_parser():
@@ -438,7 +438,7 @@ def cmd_fix_profile_for_subcommand(args, kml_file):
 
 def cmd_list_profile(args):
     """Handle list --profile subcommand for flight path analysis"""
-    from core.flight_analyzer import FlightProfileAnalyzer
+    from .core.flight_analyzer import FlightProfileAnalyzer
     
     if not args.profile:
         print("❌ Error: --profile requires KML flight path file")
@@ -634,13 +634,129 @@ def cmd_generate(args, kml_service):
         return
     
     # Original generate functionality continues here...
-    print(">> Standard KML generation not yet updated in this version")
-    print("   Use the --profile option for flight path based generation")
+    output_dir = Path(args.directory)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    if args.id:
+        # Generate KML for single airspace
+        print(f">> Generating KML for airspace ID {args.id}")
+        try:
+            kml_content = kml_service.generate_airspace_kml(args.id)
+            if kml_content:
+                # Generate output filename
+                if args.output:
+                    filename = args.output
+                    if not filename.endswith('.kml'):
+                        filename += '.kml'
+                else:
+                    filename = f"airspace_{args.id}.kml"
+                
+                output_path = output_dir / filename
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(kml_content)
+                
+                print(f"✅ Generated: {output_path}")
+            else:
+                print(f"❌ Error: Airspace ID {args.id} not found or has no geometry")
+        except Exception as e:
+            print(f"❌ Error generating KML for airspace {args.id}: {e}")
+    
+    elif args.ids:
+        # Generate KML for multiple airspaces
+        print(f">> Generating combined KML for {len(args.ids)} airspaces")
+        try:
+            kml_content = kml_service.generate_multiple_airspaces_kml(args.ids)
+            if kml_content:
+                # Generate output filename
+                if args.output:
+                    filename = args.output
+                    if not filename.endswith('.kml'):
+                        filename += '.kml'
+                else:
+                    filename = f"airspaces_{'_'.join(map(str, args.ids))}.kml"
+                
+                output_path = output_dir / filename
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(kml_content)
+                
+                print(f"✅ Generated: {output_path}")
+            else:
+                print(f"❌ Error: No valid airspaces found for IDs {args.ids}")
+        except Exception as e:
+            print(f"❌ Error generating combined KML: {e}")
+    
+    elif args.name:
+        # Generate KML for airspaces matching name pattern
+        print(f">> Generating KML for airspaces matching '{args.name}'")
+        try:
+            # Get airspaces matching the name pattern
+            matching_airspaces = kml_service.get_airspace_by_name(args.name)
+            if matching_airspaces:
+                airspace_ids = [airspace['id'] for airspace in matching_airspaces]
+                print(f"   Found {len(airspace_ids)} matching airspaces")
+                
+                kml_content = kml_service.generate_multiple_airspaces_kml(airspace_ids)
+                if kml_content:
+                    # Generate output filename
+                    if args.output:
+                        filename = args.output
+                        if not filename.endswith('.kml'):
+                            filename += '.kml'
+                    else:
+                        safe_name = "".join(c for c in args.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                        filename = f"airspaces_{safe_name.replace(' ', '_')}.kml"
+                    
+                    output_path = output_dir / filename
+                    with open(output_path, 'w', encoding='utf-8') as f:
+                        f.write(kml_content)
+                    
+                    print(f"✅ Generated: {output_path}")
+                else:
+                    print(f"❌ Error: No valid geometry found for matching airspaces")
+            else:
+                print(f"❌ Error: No airspaces found matching '{args.name}'")
+        except Exception as e:
+            print(f"❌ Error generating KML for name pattern '{args.name}': {e}")
+    
+    elif args.type:
+        # Generate KML for airspaces of specific type
+        print(f">> Generating KML for airspaces of type '{args.type}'")
+        try:
+            # Get airspaces of the specified type
+            all_airspaces = kml_service.get_airspace_by_name("")  # Get all airspaces
+            matching_airspaces = [airspace for airspace in all_airspaces 
+                                if airspace.get('code_type', '').upper() == args.type.upper()]
+            
+            if matching_airspaces:
+                airspace_ids = [airspace['id'] for airspace in matching_airspaces]
+                print(f"   Found {len(airspace_ids)} airspaces of type '{args.type}'")
+                
+                kml_content = kml_service.generate_multiple_airspaces_kml(airspace_ids)
+                if kml_content:
+                    # Generate output filename
+                    if args.output:
+                        filename = args.output
+                        if not filename.endswith('.kml'):
+                            filename += '.kml'
+                    else:
+                        filename = f"airspaces_type_{args.type.lower()}.kml"
+                    
+                    output_path = output_dir / filename
+                    with open(output_path, 'w', encoding='utf-8') as f:
+                        f.write(kml_content)
+                    
+                    print(f"✅ Generated: {output_path}")
+                else:
+                    print(f"❌ Error: No valid geometry found for type '{args.type}'")
+            else:
+                print(f"❌ Error: No airspaces found of type '{args.type}'")
+        except Exception as e:
+            print(f"❌ Error generating KML for type '{args.type}': {e}")
 
 
 def cmd_generate_profile(args):
     """Handle generate --profile subcommand for flight path KML generation"""
-    from core.flight_analyzer import FlightProfileAnalyzer
+    from .core.flight_analyzer import FlightProfileAnalyzer
     
     if not args.profile:
         print("❌ Error: --profile requires KML flight path file")
@@ -723,7 +839,7 @@ def cmd_generate_profile(args):
             print(f"      >> Organizing airspaces into KML folders by type")
             
             # Parse flight coordinates and waypoint names for inclusion in combined KML
-            from core.spatial_query import KMLFlightPathParser
+            from .core.spatial_query import KMLFlightPathParser
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
             flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(kml_file)
             
@@ -934,7 +1050,9 @@ def main():
         else:
             # Regular commands need KML service
             try:
-                kml_service = KMLVolumeService()
+                # Use database path if available in args, otherwise use default
+                db_path = getattr(args, 'database', 'data/airspaces.db')
+                kml_service = KMLVolumeService(db_path)
                 if args.command == 'list':
                     cmd_list(args, kml_service)
                 elif args.command == 'generate':

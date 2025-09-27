@@ -892,21 +892,31 @@ class AirspaceCheckerGUI:
         """View profile using the enhanced profile viewer"""
         try:
             # Import required modules
-            import subprocess
             import sys
+            import subprocess
             
             # Add profile-correction directory to path
             profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
-            sys.path.insert(0, str(profile_correction_dir))
-            
-            # Import and run the profile viewer
-            viewer_script = profile_correction_dir / "kml_profile_viewer.py"
-            cmd = [sys.executable, str(viewer_script), kml_file]
             
             self.log_processing(f"📊 Opening {profile_type} profile visualization...")
-            subprocess.Popen(cmd)
+            
+            # Use subprocess approach to avoid matplotlib threading issues with tkinter
+            viewer_script = profile_correction_dir / "kml_profile_viewer.py"
+            if viewer_script.exists():
+                # Run in separate process to avoid GUI conflicts
+                cmd = [sys.executable, str(viewer_script), kml_file]
+                # Use DETACHED_PROCESS on Windows to prevent console window
+                if sys.platform == "win32":
+                    subprocess.Popen(cmd, creationflags=subprocess.DETACHED_PROCESS)
+                else:
+                    subprocess.Popen(cmd)
+                    
+                self.log_processing(f"📊 Profile viewer launched for {Path(kml_file).name}")
+            else:
+                raise FileNotFoundError(f"Profile viewer script not found: {viewer_script}")
             
         except Exception as e:
+            self.log_processing(f"❌ Profile viewer failed: {str(e)}")
             messagebox.showerror("Error", f"Failed to open profile viewer: {str(e)}")
     
     def disable_buttons(self):

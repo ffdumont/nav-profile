@@ -147,6 +147,10 @@ class FixedAirspaceQueryEngine:
                     if vertex['latitude'] and vertex['longitude']:
                         vertices.append((vertex['longitude'], vertex['latitude']))
         
+        # Ensure polygon is closed (first vertex = last vertex)
+        if len(vertices) > 2 and vertices[0] != vertices[-1]:
+            vertices.append(vertices[0])
+        
         return vertices
     
     def _generate_circle_vertices(self, center_lat: float, center_lon: float, 
