@@ -101,13 +101,25 @@ if exist "dist\AirCheck.exe" (
     set RELEASE_DIR=releases\AirCheck_v!VERSION!
     if exist "!RELEASE_DIR!" rmdir /s /q "!RELEASE_DIR!"
     mkdir "!RELEASE_DIR!"
+    
+    REM Copy main executable and launcher
     copy "dist\AirCheck.exe" "!RELEASE_DIR!\"
+    
+    REM Copy database to main directory
+    copy "../../data/airspaces.db" "!RELEASE_DIR!\"
+    
+    REM Copy profile viewer script
+    copy "../../profile-correction/kml_profile_viewer.py" "!RELEASE_DIR!\"
+    
+    REM Create sample_data directory and copy sample KML files
     mkdir "!RELEASE_DIR!\sample_data"
-    REM Copy database and specific data samples to sample_data folder
-    copy "../../data/airspaces.db" "!RELEASE_DIR!\sample_data\"
+    copy "../../data/20250924_220820_trace.kml" "!RELEASE_DIR!\sample_data\"
+    copy "../../data/20250924_221103_trace.kml" "!RELEASE_DIR!\sample_data\"
     copy "../../data/20250926_165229_LFXU-LFFY.kml" "!RELEASE_DIR!\sample_data\"
-    copy "../../data/AIXM4.5_all_FR_OM_2025-10-02.xml" "!RELEASE_DIR!\sample_data\"
+    copy "../../data/LFXU-LFFU-2025-09-25-14-51-39.kml" "!RELEASE_DIR!\sample_data\"
     echo Place your KML flight profiles in this folder > "!RELEASE_DIR!\sample_data\Place_KML_files_here.txt"
+    
+    REM Create launcher script
     echo @echo off > "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo cd /d "%%~dp0" >> "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo AirCheck.exe >> "!RELEASE_DIR!\Launch_AirCheck.bat"
