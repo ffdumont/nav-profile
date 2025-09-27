@@ -630,8 +630,7 @@ class AirspaceCheckerGUI:
             self.log_output("")
             
             # Import the AIXM extractor
-            sys.path.append(str(Path(__file__).parent / "data_processing"))
-            from aixm_extractor import AIXMExtractor
+            from navpro.data_processing.aixm_extractor import AIXMExtractor
             
             # Set up paths
             db_path = str(Path("data/airspaces.db"))
