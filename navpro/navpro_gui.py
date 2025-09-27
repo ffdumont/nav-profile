@@ -629,8 +629,31 @@ class AirspaceCheckerGUI:
             self.log_info(f"   AIRAC: {self._extract_airac_date(aixm_file)}")
             self.log_output("")
             
-            # Import the AIXM extractor
-            from navpro.data_processing.aixm_extractor import AIXMExtractor
+            # Import the AIXM extractor - handle both dev and packaged environments
+            self.log_info("🔍 Attempting to import AIXM extractor...")
+            try:
+                # Try relative import first (for packaged executable)
+                sys.path.append(str(Path(__file__).parent / "data_processing"))
+                from aixm_extractor import AIXMExtractor
+                self.log_info("✅ AIXM extractor imported successfully (relative path)")
+            except ImportError as e1:
+                self.log_info(f"   Relative import failed: {e1}")
+                try:
+                    # Try absolute import (for development)
+                    from navpro.data_processing.aixm_extractor import AIXMExtractor
+                    self.log_info("✅ AIXM extractor imported successfully (absolute path)")
+                except ImportError as e2:
+                    self.log_info(f"   Absolute import failed: {e2}")
+                    try:
+                        # Fallback - add parent directory to path and import
+                        import sys
+                        parent_dir = str(Path(__file__).parent.parent)
+                        if parent_dir not in sys.path:
+                            sys.path.insert(0, parent_dir)
+                        from navpro.data_processing.aixm_extractor import AIXMExtractor
+                        self.log_info("✅ AIXM extractor imported successfully (fallback)")
+                    except ImportError as e3:
+                        raise ImportError(f"Failed to import AIXMExtractor after all attempts: {e1}, {e2}, {e3}")
             
             # Set up paths
             db_path = str(Path("data/airspaces.db"))
