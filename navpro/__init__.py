@@ -17,4 +17,4 @@ Airspace Checker est un outil d'analyse de profils de navigation aéronautique q
 - `visualization/` - Génération de visualisations KML
 """
 
-__version__ = "1.2.0"
+__version__ = "1.2.1.1"

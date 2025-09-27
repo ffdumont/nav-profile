@@ -99,3 +99,4 @@ flight_profile_*.kml
 # Output directory - generated corrected profiles and analysis files
 output/
 
+nav-profile.code-workspace
