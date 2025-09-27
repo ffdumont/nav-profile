@@ -18,7 +18,9 @@ NEW IN v1.2.1.4:
 - Improved AIXM extractor import fallback logic
 - Added debug messages for import troubleshooting
 - Resolved sys variable scope issues
+- PATCH: Fixed database path handling for deployed environments
 - Database rebuild feature now works correctly in both development and packaged environments
+- Intelligent database path detection (data/ vs sample_data/)
 
 Installation:
 1. Extract all files to a folder on your system
