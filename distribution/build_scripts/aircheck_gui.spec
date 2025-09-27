@@ -35,6 +35,7 @@ a = Analysis(
         'utils.search',
         'data_processing',
         'data_processing.aixm_extractor',
+        'aixm_extractor',
         'version',
         'kml_profile_corrector',
         'aviation_utils',

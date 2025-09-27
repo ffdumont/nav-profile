@@ -643,28 +643,48 @@ class AirspaceCheckerGUI:
             
             # Import the AIXM extractor - handle both dev and packaged environments
             self.log_info("🔍 Attempting to import AIXM extractor...")
+            
+            # Check if we're running as a PyInstaller bundle
+            def is_bundled():
+                return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+            
             try:
-                # Try relative import first (for packaged executable)
-                sys.path.append(str(Path(__file__).parent / "data_processing"))
-                from aixm_extractor import AIXMExtractor
-                self.log_info("✅ AIXM extractor imported successfully (relative path)")
+                # Always try the absolute import first
+                self.log_info(f"   Environment: {'PyInstaller bundle' if is_bundled() else 'development'}")
+                from navpro.data_processing.aixm_extractor import AIXMExtractor
+                self.log_info("✅ AIXM extractor imported successfully (absolute import)")
             except ImportError as e1:
-                self.log_info(f"   Relative import failed: {e1}")
+                self.log_info(f"   Absolute import failed: {e1}")
                 try:
-                    # Try absolute import (for development)
-                    from navpro.data_processing.aixm_extractor import AIXMExtractor
-                    self.log_info("✅ AIXM extractor imported successfully (absolute path)")
+                    # Fallback for bundled executables - try adding the package to path
+                    if is_bundled():
+                        # In PyInstaller, try to import from the temporary directory
+                        temp_dir = getattr(sys, '_MEIPASS', '')
+                        if temp_dir:
+                            data_proc_path = os.path.join(temp_dir, 'navpro', 'data_processing')
+                            if data_proc_path not in sys.path:
+                                sys.path.insert(0, data_proc_path)
+                            self.log_info(f"   Added to path: {data_proc_path}")
+                    
+                    # Try direct import after path manipulation
+                    from aixm_extractor import AIXMExtractor
+                    self.log_info("✅ AIXM extractor imported successfully (direct import)")
                 except ImportError as e2:
-                    self.log_info(f"   Absolute import failed: {e2}")
+                    self.log_info(f"   Direct import failed: {e2}")
                     try:
-                        # Fallback - add parent directory to path and import
-                        parent_dir = str(Path(__file__).parent.parent)
-                        if parent_dir not in sys.path:
-                            sys.path.insert(0, parent_dir)
+                        # Final fallback - manual path setup
+                        current_dir = os.path.dirname(os.path.abspath(__file__))
+                        parent_dir = os.path.dirname(current_dir)
+                        data_proc_path = os.path.join(current_dir, "data_processing")
+                        
+                        for path in [parent_dir, data_proc_path]:
+                            if path not in sys.path:
+                                sys.path.insert(0, path)
+                        
                         from navpro.data_processing.aixm_extractor import AIXMExtractor
-                        self.log_info("✅ AIXM extractor imported successfully (fallback)")
+                        self.log_info("✅ AIXM extractor imported successfully (manual path)")
                     except ImportError as e3:
-                        raise ImportError(f"Failed to import AIXMExtractor after all attempts: {e1}, {e2}, {e3}")
+                        raise ImportError(f"Failed to import AIXMExtractor after all attempts:\n  1: {e1}\n  2: {e2}\n  3: {e3}")
             
             # Set up paths - handle both development and deployed environments
             if os.path.exists("data/airspaces.db"):
