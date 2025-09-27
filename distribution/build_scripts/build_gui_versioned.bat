@@ -104,6 +104,9 @@ if exist "dist\AirCheck.exe" (
     copy "dist\AirCheck.exe" "!RELEASE_DIR!\"
     copy "../../data/airspaces.db" "!RELEASE_DIR!\"
     mkdir "!RELEASE_DIR!\sample_data"
+    REM Copy specific data samples as requested
+    copy "../../data/20250926_165229_LFXU-LFFY.kml" "!RELEASE_DIR!\sample_data\"
+    copy "../../data/AIXM4.5_all_FR_OM_2025-10-02.xml" "!RELEASE_DIR!\sample_data\"
     echo Place your KML flight profiles in this folder > "!RELEASE_DIR!\sample_data\Place_KML_files_here.txt"
     echo @echo off > "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo cd /d "%%~dp0" >> "!RELEASE_DIR!\Launch_AirCheck.bat"
