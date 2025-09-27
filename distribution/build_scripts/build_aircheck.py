@@ -16,7 +16,9 @@ import re
 import shutil
 import subprocess
 import argparse
+import zipfile
 from pathlib import Path
+from datetime import datetime
 
 # Add parent directories to path
 sys.path.append('../../')
@@ -103,8 +105,8 @@ def create_release_package(version):
         print("ERROR: AirCheck.exe not found in dist/")
         return False
     
-    # Create releases directory
-    releases_dir = Path('releases')
+    # Use the main releases directory for consistency
+    releases_dir = Path('../releases')
     releases_dir.mkdir(exist_ok=True)
     
     # Create versioned release directory
@@ -138,7 +140,54 @@ pause
     with open(release_dir / 'Launch_AirCheck.bat', 'w') as f:
         f.write(launcher_content)
     
+    # Create README for the release
+    readme_content = f'''# AirCheck v{version}
+
+Airspace Checker - Flight Profile & Airspace Analyzer
+
+## Contents
+- AirCheck.exe - Main application
+- airspaces.db - Airspace database 
+- Launch_AirCheck.bat - Convenient launcher
+- sample_data/ - Place your KML files here
+
+## Usage
+1. Double-click Launch_AirCheck.bat or run AirCheck.exe directly
+2. Load your KML flight profiles from the sample_data folder
+3. Select AIXM airspace data file
+4. Analyze airspace violations and generate reports
+
+## Requirements
+- Windows 10/11
+- Google Earth Pro (recommended for visualization)
+
+Built on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+'''
+    
+    with open(release_dir / 'README.md', 'w') as f:
+        f.write(readme_content)
+    
+    # Create zip file in the releases directory
+    zip_path = releases_dir / f'AirCheck_v{version}.zip'
+    if zip_path.exists():
+        zip_path.unlink()
+        
+    import zipfile
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for file_path in release_dir.rglob('*'):
+            if file_path.is_file():
+                arcname = file_path.relative_to(release_dir)
+                zipf.write(file_path, arcname)
+    
+    # Update the current release symlink/copy
+    current_dir = releases_dir / 'current'
+    if current_dir.exists():
+        shutil.rmtree(current_dir)
+    shutil.copytree(release_dir, current_dir)
+    
     print(f"Release package created: {release_dir}")
+    print(f"Release zip created: {zip_path}")
+    print(f"Current release updated: {current_dir}")
     return True
 
 def main():
@@ -185,8 +234,10 @@ def main():
         if create_release_package(version):
             print()
             print("To distribute:")
-            print(f"1. Use the complete package in: releases/AirCheck_v{version}/")
-            print("2. Ensure target system has Google Earth Pro installed")
+            print(f"1. Use the complete package in: ../releases/AirCheck_v{version}/")
+            print(f"2. Or use the zip file: ../releases/AirCheck_v{version}.zip")
+            print("3. Current release updated in: ../releases/current/")
+            print("4. Ensure target system has Google Earth Pro installed")
         else:
             print("Warning: Failed to create release package")
     
