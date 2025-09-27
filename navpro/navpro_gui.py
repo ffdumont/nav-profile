@@ -534,7 +534,13 @@ class AirspaceCheckerGUI:
     def _check_database_status(self) -> Dict[str, Any]:
         """Check if database exists and matches current AIRAC"""
         try:
-            db_path = Path("data/airspaces.db")
+            # Check both possible database locations
+            if Path("data/airspaces.db").exists():
+                db_path = Path("data/airspaces.db")
+            elif Path("sample_data/airspaces.db").exists():
+                db_path = Path("sample_data/airspaces.db")
+            else:
+                db_path = Path("data/airspaces.db")  # Default for status checking
             
             status = {
                 "exists": db_path.exists(),
@@ -564,7 +570,13 @@ class AirspaceCheckerGUI:
     def _check_and_rebuild_database(self, new_aixm_file: str, old_aixm_file: str):
         """Check if database needs to be rebuilt for new AIRAC and rebuild if needed"""
         try:
-            db_path = Path("data/airspaces.db")
+            # Check both possible database locations
+            if Path("data/airspaces.db").exists():
+                db_path = Path("data/airspaces.db")
+            elif Path("sample_data/airspaces.db").exists():
+                db_path = Path("sample_data/airspaces.db")
+            else:
+                db_path = Path("data/airspaces.db")  # Default for rebuild checking
             
             # Always rebuild if different AIRAC file is selected
             if new_aixm_file != old_aixm_file:
@@ -654,8 +666,25 @@ class AirspaceCheckerGUI:
                     except ImportError as e3:
                         raise ImportError(f"Failed to import AIXMExtractor after all attempts: {e1}, {e2}, {e3}")
             
-            # Set up paths
-            db_path = str(Path("data/airspaces.db"))
+            # Set up paths - handle both development and deployed environments
+            if os.path.exists("data/airspaces.db"):
+                # Development environment - database in project data folder
+                db_path = str(Path("data/airspaces.db"))
+                self.log_info("📁 Using development database path: data/airspaces.db")
+            elif os.path.exists("sample_data/airspaces.db"):
+                # Deployed environment - database in sample_data folder
+                db_path = str(Path("sample_data/airspaces.db"))
+                self.log_info("📁 Using deployed database path: sample_data/airspaces.db")
+            else:
+                # Create in sample_data folder (for deployed) or data folder (for dev)
+                if Path("sample_data").exists():
+                    db_path = str(Path("sample_data/airspaces.db"))
+                    self.log_info("📁 Creating database in deployed location: sample_data/airspaces.db")
+                else:
+                    # Ensure data directory exists
+                    Path("data").mkdir(exist_ok=True)
+                    db_path = str(Path("data/airspaces.db"))
+                    self.log_info("📁 Creating database in development location: data/airspaces.db")
             
             # Remove old database if it exists
             if os.path.exists(db_path):
@@ -957,10 +986,14 @@ class AirspaceCheckerGUI:
             self.log_output(f"   Corridor: ±{self.corridor_height.get()} ft, ±{self.corridor_width.get()} NM")
             self.log_output("")
             
-            # Initialize analyzer
-            db_path = "data/airspaces.db"
-            if not os.path.exists(db_path):
-                self.log_output("❌ Error: Airspace database not found. Please ensure data/airspaces.db exists.")
+            # Initialize analyzer - find database in correct location
+            if os.path.exists("data/airspaces.db"):
+                db_path = "data/airspaces.db"
+            elif os.path.exists("sample_data/airspaces.db"):
+                db_path = "sample_data/airspaces.db"
+            else:
+                self.log_output("❌ Error: Airspace database not found.")
+                self.log_output("   Please ensure airspaces.db exists in either 'data/' or 'sample_data/' folder.")
                 return
             
             analyzer = FlightProfileAnalyzer(
@@ -1167,8 +1200,16 @@ class AirspaceCheckerGUI:
             # Use existing generate functionality from CLI tool
             # This is similar to cmd_generate_profile but adapted for GUI
             
-            # Initialize analyzer
-            db_path = "data/airspaces.db"
+            # Initialize analyzer - find database in correct location
+            if os.path.exists("data/airspaces.db"):
+                db_path = "data/airspaces.db"
+            elif os.path.exists("sample_data/airspaces.db"):
+                db_path = "sample_data/airspaces.db"
+            else:
+                self.log_error("❌ Error: Airspace database not found.")
+                self.log_info("   Please ensure airspaces.db exists in either 'data/' or 'sample_data/' folder.")
+                return
+                
             analyzer = FlightProfileAnalyzer(db_path, self.corridor_height.get(), self.corridor_width.get())
             
             self.log_processing("Building spatial index...")
