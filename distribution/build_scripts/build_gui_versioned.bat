@@ -102,30 +102,123 @@ if exist "dist\AirCheck.exe" (
     if exist "!RELEASE_DIR!" rmdir /s /q "!RELEASE_DIR!"
     mkdir "!RELEASE_DIR!"
     
-    REM Copy main executable and launcher
-    copy "dist\AirCheck.exe" "!RELEASE_DIR!\"
+    echo.
+    echo Copying files to release directory...
+    
+    REM Copy main executable
+    echo Copying executable...
+    if exist "dist\AirCheck.exe" (
+        copy "dist\AirCheck.exe" "!RELEASE_DIR!\"
+        if errorlevel 1 echo ERROR: Failed to copy AirCheck.exe
+    ) else (
+        echo ERROR: dist\AirCheck.exe not found!
+    )
     
     REM Copy database to main directory
-    copy "../../data/airspaces.db" "!RELEASE_DIR!\"
+    echo Copying database...
+    set DB_PATH=..\..\data\airspaces.db
+    if exist "!DB_PATH!" (
+        copy "!DB_PATH!" "!RELEASE_DIR!\"
+        if errorlevel 1 echo ERROR: Failed to copy airspaces.db
+    ) else (
+        echo ERROR: Database not found at !DB_PATH!
+    )
+    
+    REM Create data directory and copy AIXM file
+    echo Creating data directory...
+    mkdir "!RELEASE_DIR!\data"
+    
+    echo Copying AIXM file for database rebuilds...
+    set AIXM_PATH=..\..\data\AIXM4.5_all_FR_OM_2025-10-02.xml
+    if exist "!AIXM_PATH!" (
+        copy "!AIXM_PATH!" "!RELEASE_DIR!\data\"
+        if errorlevel 1 echo ERROR: Failed to copy AIXM file
+    ) else (
+        echo ERROR: AIXM file not found at !AIXM_PATH!
+    )
     
     REM Copy profile correction scripts
-    copy "../../profile-correction/kml_profile_viewer.py" "!RELEASE_DIR!\"
-    copy "../../profile-correction/kml_profile_corrector.py" "!RELEASE_DIR!\"
-    copy "../../profile-correction/aviation_utils.py" "!RELEASE_DIR!\"
+    echo Copying profile correction scripts...
+    set PROFILE_DIR=..\..\profile-correction
+    
+    if exist "!PROFILE_DIR!\kml_profile_viewer.py" (
+        copy "!PROFILE_DIR!\kml_profile_viewer.py" "!RELEASE_DIR!\"
+        if errorlevel 1 echo ERROR: Failed to copy kml_profile_viewer.py
+    ) else (
+        echo ERROR: kml_profile_viewer.py not found in !PROFILE_DIR!
+    )
+    
+    if exist "!PROFILE_DIR!\kml_profile_corrector.py" (
+        copy "!PROFILE_DIR!\kml_profile_corrector.py" "!RELEASE_DIR!\"
+        if errorlevel 1 echo ERROR: Failed to copy kml_profile_corrector.py
+    ) else (
+        echo ERROR: kml_profile_corrector.py not found in !PROFILE_DIR!
+    )
+    
+    if exist "!PROFILE_DIR!\aviation_utils.py" (
+        copy "!PROFILE_DIR!\aviation_utils.py" "!RELEASE_DIR!\"
+        if errorlevel 1 echo ERROR: Failed to copy aviation_utils.py
+    ) else (
+        echo ERROR: aviation_utils.py not found in !PROFILE_DIR!
+    )
     
     REM Create sample_data directory and copy sample KML files
+    echo Creating sample_data directory...
     mkdir "!RELEASE_DIR!\sample_data"
-    copy "../../data/20250924_220820_trace.kml" "!RELEASE_DIR!\sample_data\"
-    copy "../../data/20250924_221103_trace.kml" "!RELEASE_DIR!\sample_data\"
-    copy "../../data/20250926_165229_LFXU-LFFY.kml" "!RELEASE_DIR!\sample_data\"
-    copy "../../data/LFXU-LFFU-2025-09-25-14-51-39.kml" "!RELEASE_DIR!\sample_data\"
+    
+    echo Copying sample KML files...
+    set DATA_DIR=..\..\data
+    
+    REM Copy all KML files from data directory
+    for %%f in ("!DATA_DIR!\*.kml") do (
+        echo Copying %%~nxf...
+        copy "%%f" "!RELEASE_DIR!\sample_data\"
+        if errorlevel 1 echo ERROR: Failed to copy %%~nxf
+    )
+    
+    REM Create instructions file
     echo Place your KML flight profiles in this folder > "!RELEASE_DIR!\sample_data\Place_KML_files_here.txt"
     
     REM Create launcher script
+    echo Creating launcher script...
     echo @echo off > "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo cd /d "%%~dp0" >> "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo AirCheck.exe >> "!RELEASE_DIR!\Launch_AirCheck.bat"
     echo pause >> "!RELEASE_DIR!\Launch_AirCheck.bat"
+    
+    REM Verify the release package
+    echo.
+    echo ================================
+    echo VERIFYING RELEASE PACKAGE
+    echo ================================
+    echo.
+    echo Main directory contents:
+    dir "!RELEASE_DIR!" /b
+    echo.
+    echo Data directory contents:
+    if exist "!RELEASE_DIR!\data" (
+        dir "!RELEASE_DIR!\data" /b
+    ) else (
+        echo ERROR: Data directory not found!
+    )
+    echo.
+    echo Sample data contents:
+    if exist "!RELEASE_DIR!\sample_data" (
+        dir "!RELEASE_DIR!\sample_data" /b
+    ) else (
+        echo ERROR: Sample data directory not found!
+    )
+    echo.
+    
+    REM Check for critical files
+    echo Checking critical files:
+    if exist "!RELEASE_DIR!\AirCheck.exe" (echo ✓ AirCheck.exe) else (echo ✗ AirCheck.exe MISSING)
+    if exist "!RELEASE_DIR!\airspaces.db" (echo ✓ airspaces.db) else (echo ✗ airspaces.db MISSING)
+    if exist "!RELEASE_DIR!\kml_profile_viewer.py" (echo ✓ kml_profile_viewer.py) else (echo ✗ kml_profile_viewer.py MISSING)
+    if exist "!RELEASE_DIR!\kml_profile_corrector.py" (echo ✓ kml_profile_corrector.py) else (echo ✗ kml_profile_corrector.py MISSING)
+    if exist "!RELEASE_DIR!\aviation_utils.py" (echo ✓ aviation_utils.py) else (echo ✗ aviation_utils.py MISSING)
+    if exist "!RELEASE_DIR!\data\AIXM4.5_all_FR_OM_2025-10-02.xml" (echo ✓ AIXM file) else (echo ✗ AIXM file MISSING)
+    echo.
     
     echo.
     echo Release package created: !RELEASE_DIR!

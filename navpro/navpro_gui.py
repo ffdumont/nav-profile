@@ -934,7 +934,27 @@ class AirspaceCheckerGUI:
             # Use subprocess approach to avoid matplotlib threading issues with tkinter
             if viewer_script.exists():
                 # Run in separate process to avoid GUI conflicts
-                cmd = [sys.executable, str(viewer_script), kml_file]
+                def is_bundled():
+                    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+                
+                if is_bundled():
+                    # In bundled executable, we need to run Python directly, not the exe
+                    # Find Python executable in the system
+                    import shutil
+                    python_exe = shutil.which('python')
+                    if not python_exe:
+                        python_exe = shutil.which('python3')
+                    if not python_exe:
+                        # Fallback to the Python that built the executable
+                        python_exe = sys.executable.replace('AirCheck.exe', 'python.exe')
+                    
+                    cmd = [python_exe, str(viewer_script), kml_file]
+                    self.log_processing(f"   Using Python: {python_exe}")
+                else:
+                    # In development, use sys.executable (python interpreter)
+                    cmd = [sys.executable, str(viewer_script), kml_file]
+                    self.log_processing(f"   Using Python: {sys.executable}")
+                
                 # Use DETACHED_PROCESS on Windows to prevent console window
                 if sys.platform == "win32":
                     subprocess.Popen(cmd, creationflags=subprocess.DETACHED_PROCESS)
