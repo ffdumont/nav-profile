@@ -22,7 +22,7 @@ def get_version():
         pass
     
     # Fallback version
-    return "1.2.1.3"
+    return "1.2.1.4"
 
 def get_dev_version():
     """
