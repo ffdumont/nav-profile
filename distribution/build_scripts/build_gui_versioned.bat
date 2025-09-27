@@ -108,8 +108,10 @@ if exist "dist\AirCheck.exe" (
     REM Copy database to main directory
     copy "../../data/airspaces.db" "!RELEASE_DIR!\"
     
-    REM Copy profile viewer script
+    REM Copy profile correction scripts
     copy "../../profile-correction/kml_profile_viewer.py" "!RELEASE_DIR!\"
+    copy "../../profile-correction/kml_profile_corrector.py" "!RELEASE_DIR!\"
+    copy "../../profile-correction/aviation_utils.py" "!RELEASE_DIR!\"
     
     REM Create sample_data directory and copy sample KML files
     mkdir "!RELEASE_DIR!\sample_data"

@@ -915,13 +915,23 @@ class AirspaceCheckerGUI:
             import sys
             import subprocess
             
-            # Add profile-correction directory to path
-            profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
+            # Determine the correct path for the profile viewer script
+            def is_bundled():
+                return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+            
+            if is_bundled():
+                # In PyInstaller bundle, script is in the same directory as the executable
+                exe_dir = Path(sys.executable).parent
+                viewer_script = exe_dir / "kml_profile_viewer.py"
+            else:
+                # In development, script is in profile-correction directory
+                profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
+                viewer_script = profile_correction_dir / "kml_profile_viewer.py"
             
             self.log_processing(f"📊 Opening {profile_type} profile visualization...")
+            self.log_processing(f"   Looking for viewer script at: {viewer_script}")
             
             # Use subprocess approach to avoid matplotlib threading issues with tkinter
-            viewer_script = profile_correction_dir / "kml_profile_viewer.py"
             if viewer_script.exists():
                 # Run in separate process to avoid GUI conflicts
                 cmd = [sys.executable, str(viewer_script), kml_file]
@@ -1157,22 +1167,40 @@ class AirspaceCheckerGUI:
         """Run profile correction specifically for KML generation (without full UI updates)"""
         try:
             # Import KMLProfileCorrector - handle both dev and packaged environments
+            def is_bundled():
+                return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+            
             try:
-                # Try adding profile-correction directory to path (for development)
-                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'profile-correction'))
-                from kml_profile_corrector import KMLProfileCorrector
+                if is_bundled():
+                    # In PyInstaller bundle, the module should be directly importable
+                    # since it's in the same directory as the executable
+                    import kml_profile_corrector
+                    from kml_profile_corrector import KMLProfileCorrector
+                else:
+                    # In development, add profile-correction directory to path
+                    profile_correction_dir = os.path.join(os.path.dirname(__file__), '..', 'profile-correction')
+                    if profile_correction_dir not in sys.path:
+                        sys.path.insert(0, profile_correction_dir)
+                    from kml_profile_corrector import KMLProfileCorrector
             except ImportError as e1:
                 try:
-                    # Try direct import (for packaged executable with included modules)
-                    import kml_profile_corrector
+                    # Fallback: Try the opposite approach
+                    if is_bundled():
+                        # Try adding path to the executable directory
+                        exe_dir = str(Path(sys.executable).parent)
+                        if exe_dir not in sys.path:
+                            sys.path.insert(0, exe_dir)
+                    else:
+                        # Try direct import without path manipulation
+                        pass
                     from kml_profile_corrector import KMLProfileCorrector
                 except ImportError as e2:
                     try:
-                        # Try alternative path for packaged executable
+                        # Final fallback - try alternative path
                         sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
                         from kml_profile_corrector import KMLProfileCorrector
                     except ImportError as e3:
-                        raise ImportError(f"Failed to import KMLProfileCorrector for KML generation: {e1}, {e2}, {e3}")
+                        raise ImportError(f"Failed to import KMLProfileCorrector: {e1}, {e2}, {e3}")
             
             # Initialize corrector with settings
             corrector = KMLProfileCorrector(
