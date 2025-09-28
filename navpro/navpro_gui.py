@@ -1077,13 +1077,13 @@ class AirspaceCheckerGUI:
             self.log_output("")
             
             # Initialize analyzer - find database in correct location
-            if os.path.exists("data/airspaces.db"):
-                db_path = "data/airspaces.db"
-            elif os.path.exists("sample_data/airspaces.db"):
-                db_path = "sample_data/airspaces.db"
-            else:
+            # Use config manager to get proper database path
+            db_path = str(self.config.get_database_path())
+            
+            if not os.path.exists(db_path):
                 self.log_output("❌ Error: Airspace database not found.")
-                self.log_output("   Please ensure airspaces.db exists in either 'data/' or 'sample_data/' folder.")
+                self.log_output(f"   Expected location: {db_path}")
+                self.log_output("   Please ensure airspaces.db is available.")
                 return
             
             analyzer = FlightProfileAnalyzer(
@@ -1322,14 +1322,13 @@ class AirspaceCheckerGUI:
             # Use existing generate functionality from CLI tool
             # This is similar to cmd_generate_profile but adapted for GUI
             
-            # Initialize analyzer - find database in correct location
-            if os.path.exists("data/airspaces.db"):
-                db_path = "data/airspaces.db"
-            elif os.path.exists("sample_data/airspaces.db"):
-                db_path = "sample_data/airspaces.db"
-            else:
+            # Initialize analyzer - use config manager for database path
+            db_path = str(self.config.get_database_path())
+            
+            if not os.path.exists(db_path):
                 self.log_error("❌ Error: Airspace database not found.")
-                self.log_info("   Please ensure airspaces.db exists in either 'data/' or 'sample_data/' folder.")
+                self.log_info(f"   Expected location: {db_path}")
+                self.log_info("   Please ensure airspaces.db is available.")
                 return
                 
             analyzer = FlightProfileAnalyzer(db_path, self.corridor_height.get(), self.corridor_width.get())

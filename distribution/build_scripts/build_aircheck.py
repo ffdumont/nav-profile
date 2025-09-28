@@ -118,10 +118,15 @@ def create_release_package(version):
     # Copy executable
     shutil.copy2('dist/AirCheck.exe', release_dir)
     
-    # Copy database if it exists
+    # Copy database to correct location (data/airspaces.db as per config.ini)
     airspaces_db = Path('../../data/airspaces.db')
     if airspaces_db.exists():
-        shutil.copy2(airspaces_db, release_dir)
+        data_dir = release_dir / 'data'
+        data_dir.mkdir(exist_ok=True)
+        shutil.copy2(airspaces_db, data_dir)
+        print(f"Database copied to data/ directory")
+    else:
+        print(f"Warning: Database not found at {airspaces_db}")
     
     # Create launcher batch file
     launcher_content = '''@echo off 
