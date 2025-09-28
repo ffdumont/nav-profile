@@ -123,13 +123,6 @@ def create_release_package(version):
     if airspaces_db.exists():
         shutil.copy2(airspaces_db, release_dir)
     
-    # Create sample_data directory
-    sample_data_dir = release_dir / 'sample_data'
-    sample_data_dir.mkdir()
-    
-    with open(sample_data_dir / 'Place_KML_files_here.txt', 'w') as f:
-        f.write('Place your KML flight profiles in this folder\n')
-    
     # Create launcher batch file
     launcher_content = '''@echo off 
 cd /d "%~dp0" 
@@ -149,12 +142,14 @@ Airspace Checker - Flight Profile & Airspace Analyzer
 - AirCheck.exe - Main application
 - airspaces.db - Airspace database 
 - Launch_AirCheck.bat - Convenient launcher
-- sample_data/ - Place your KML files here
+- data/samples/ - Sample KML flight profiles (includes LFXU-LFFY example)
+- data/input/ - AIXM airspace data files
+- data/output/ - Generated analysis results
 
 ## Usage
 1. Double-click Launch_AirCheck.bat or run AirCheck.exe directly
-2. Load your KML flight profiles from the sample_data folder
-3. Select AIXM airspace data file
+2. Use the included sample KML file from data/samples/ or load your own
+3. AIXM airspace data is automatically loaded
 4. Analyze airspace violations and generate reports
 
 ## Requirements
