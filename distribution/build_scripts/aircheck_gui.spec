@@ -5,7 +5,14 @@ a = Analysis(
     ['../../navpro/navpro_gui.py'],
     pathex=['../../navpro', '../../'],
     binaries=[],
-    datas=[('../../data/', 'data/'), ('../../navpro/profile-correction/', 'profile-correction/'), ('../../navpro/', 'navpro/')],
+    datas=[
+        ('../../data/input/AIXM4.5_all_FR_OM_2025-10-02.xml', 'data/input/'),
+        ('../../data/output/', 'data/output/'),
+        ('../../data/samples/20250926_165229_LFXU-LFFY.kml', 'data/samples/'),
+        ('../../data/airspaces.db', 'data/'),
+        ('../../navpro/profile-correction/', 'profile-correction/'), 
+        ('../../navpro/', 'navpro/')
+    ],
     hiddenimports=[
         'navpro',
         'navpro.core',
@@ -22,6 +29,8 @@ a = Analysis(
         'navpro.data_processing',
         'navpro.data_processing.aixm_extractor',
         'navpro.version',
+        'navpro.splash_screen',
+        'navpro.config_manager',
         'core',
         'core.flight_analyzer',
         'core.spatial_query',

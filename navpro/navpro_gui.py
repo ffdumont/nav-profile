@@ -328,7 +328,7 @@ class AirspaceCheckerGUI:
                 print(f"No AIXM files found in input directory: {input_data_dir}")
         else:
             print(f"Input data directory does not exist: {input_data_dir}")
-            
+        
         # Set default output directory using config
         output_dir = self.config.get_output_data_path()
         if not output_dir.exists():
@@ -1472,6 +1472,28 @@ class AirspaceCheckerGUI:
 
 def main():
     """Main function to run the GUI application"""
+    
+    # Show splash screen during startup
+    from splash_screen import show_splash_with_config
+    from config_manager import ConfigManager
+    
+    # Initialize config for splash screen
+    config = ConfigManager()
+    
+    # Show splash screen with startup tasks
+    startup_tasks = [
+        {"name": "Loading configuration..."},
+        {"name": "Initializing database..."}, 
+        {"name": "Loading AIXM data..."},
+        {"name": "Preparing interface..."}
+    ]
+    
+    try:
+        show_splash_with_config(config, startup_tasks)
+    except Exception as e:
+        print(f"Splash screen error (non-critical): {e}")
+    
+    # Continue with normal GUI initialization
     root = tk.Tk()
     
     # Configure ttk styles

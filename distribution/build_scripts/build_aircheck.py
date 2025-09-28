@@ -185,6 +185,38 @@ Built on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         shutil.rmtree(current_dir)
     shutil.copytree(release_dir, current_dir)
     
+    # Copy AIXM file to both release and current directories (large file may not be included by PyInstaller)
+    aixm_source = Path('../../data/input/AIXM4.5_all_FR_OM_2025-10-02.xml')
+    if aixm_source.exists():
+        # Copy to release directory
+        release_input_dir = release_dir / 'data' / 'input'
+        release_input_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(aixm_source, release_input_dir)
+        
+        # Copy to current directory  
+        current_input_dir = current_dir / 'data' / 'input'
+        current_input_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(aixm_source, current_input_dir)
+        print(f"AIXM file copied to release packages")
+    else:
+        print(f"Warning: AIXM file not found at {aixm_source}")
+    
+    # Copy sample KML file (only LFXU-LFFY sample)
+    sample_source = Path('../../data/samples/20250926_165229_LFXU-LFFY.kml')
+    if sample_source.exists():
+        # Copy to release directory
+        release_samples_dir = release_dir / 'data' / 'samples'
+        release_samples_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sample_source, release_samples_dir)
+        
+        # Copy to current directory
+        current_samples_dir = current_dir / 'data' / 'samples'
+        current_samples_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sample_source, current_samples_dir)
+        print(f"Sample KML file copied to release packages")
+    else:
+        print(f"Warning: Sample KML file not found at {sample_source}")
+    
     print(f"Release package created: {release_dir}")
     print(f"Release zip created: {zip_path}")
     print(f"Current release updated: {current_dir}")

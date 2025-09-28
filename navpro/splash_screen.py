@@ -17,9 +17,21 @@ class SplashScreen:
     Splash screen with progress bar and status updates.
     """
     
-    def __init__(self, title: str = "AirCheck", version: str = "1.2.4"):
+    def __init__(self, title: str = "AirCheck", version: str = None):
         self.title = title
-        self.version = version
+        # Get version from navpro package if not provided
+        if version is None:
+            try:
+                from . import __version__
+                self.version = __version__
+            except ImportError:
+                try:
+                    import navpro
+                    self.version = navpro.__version__
+                except ImportError:
+                    self.version = "1.2.5"  # Fallback
+        else:
+            self.version = version
         self.root = None
         self.progress_var = None
         self.status_var = None
@@ -280,14 +292,25 @@ def show_splash_with_config(config_manager, tasks: list = None):
     """
     # Get configuration
     app_name = config_manager.get_value('APPLICATION', 'app_name', 'AirCheck')
-    version = config_manager.get_value('APPLICATION', 'version', '1.2.4')
+    
+    # Get version from navpro package instead of config (which may be outdated)
+    try:
+        from . import __version__
+        version = __version__
+    except ImportError:
+        try:
+            import navpro
+            version = navpro.__version__
+        except ImportError:
+            version = config_manager.get_value('APPLICATION', 'version', '1.2.5')
+    
     enable_splash = config_manager.get_bool('APPLICATION', 'enable_splash', True)
     timeout = config_manager.get_int('APPLICATION', 'splash_timeout', 3000)
     
     if not enable_splash:
         return
     
-    # Create and show splash
+    # Create and show splash with dynamic version
     splash = SplashScreen(app_name, version)
     
     if tasks:
