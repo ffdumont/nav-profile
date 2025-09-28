@@ -15,7 +15,8 @@ import webbrowser
 from pathlib import Path
 import io
 import contextlib
-from typing import Dict, Any
+import importlib
+from typing import Dict, Any, TYPE_CHECKING
 
 # Add the project directory to Python path
 sys.path.append(str(Path(__file__).parent))
@@ -27,6 +28,12 @@ from splash_screen import show_splash_with_config
 # Import our core functionality
 from core.flight_analyzer import FlightProfileAnalyzer
 from visualization.kml_generator import KMLVolumeService
+
+# Type-only imports for Pylance (optional modules)
+if TYPE_CHECKING:
+    from aixm_extractor import AIXMExtractor  # type: ignore
+    from kml_profile_corrector import KMLProfileCorrector  # type: ignore
+    from kml_profile_viewer import KMLProfileViewer  # type: ignore
 
 # Import version information
 try:
@@ -694,7 +701,7 @@ class AirspaceCheckerGUI:
                             self.log_info(f"   Added to path: {data_proc_path}")
                     
                     # Try direct import after path manipulation
-                    from aixm_extractor import AIXMExtractor
+                    from aixm_extractor import AIXMExtractor  # type: ignore
                     self.log_info("✅ AIXM extractor imported successfully (direct import)")
                 except ImportError as e2:
                     self.log_info(f"   Direct import failed: {e2}")
@@ -795,19 +802,19 @@ class AirspaceCheckerGUI:
                 # Try adding profile-correction directory to path (for development)
                 profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
                 sys.path.insert(0, str(profile_correction_dir))
-                from kml_profile_corrector import KMLProfileCorrector
+                from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                 self.log_info("✅ Profile corrector imported successfully (development path)")
             except ImportError as e1:
                 try:
                     # Try direct import (for packaged executable with included modules)
-                    import kml_profile_corrector
-                    from kml_profile_corrector import KMLProfileCorrector
+                    import kml_profile_corrector  # type: ignore
+                    from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                     self.log_info("✅ Profile corrector imported successfully (direct import)")
                 except ImportError as e2:
                     try:
                         # Try alternative path for packaged executable
                         sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
-                        from kml_profile_corrector import KMLProfileCorrector
+                        from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                         self.log_info("✅ Profile corrector imported successfully (alternative path)")
                     except ImportError as e3:
                         raise ImportError(f"Failed to import KMLProfileCorrector after all attempts: {e1}, {e2}, {e3}")
@@ -934,17 +941,17 @@ class AirspaceCheckerGUI:
                     
                     # Try to import the bundled module
                     try:
-                        from kml_profile_viewer import KMLProfileViewer
+                        from kml_profile_viewer import KMLProfileViewer  # type: ignore
                         self.log_processing("   Using bundled profile viewer module")
                     except ImportError:
                         # Fallback: try profile-correction module path
                         sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
-                        from kml_profile_viewer import KMLProfileViewer
+                        from kml_profile_viewer import KMLProfileViewer  # type: ignore
                         self.log_processing("   Using profile-correction module")
                 else:
                     # In development, import from profile-correction directory
                     sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
-                    from kml_profile_viewer import KMLProfileViewer
+                    from kml_profile_viewer import KMLProfileViewer  # type: ignore
                     self.log_processing("   Using development profile viewer")
                 
                 # Create and run the viewer directly
@@ -1197,14 +1204,14 @@ class AirspaceCheckerGUI:
                 if is_bundled():
                     # In PyInstaller bundle, the module should be directly importable
                     # since it's in the same directory as the executable
-                    import kml_profile_corrector
-                    from kml_profile_corrector import KMLProfileCorrector
+                    import kml_profile_corrector  # type: ignore
+                    from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                 else:
                     # In development, add profile-correction directory to path
                     profile_correction_dir = os.path.join(os.path.dirname(__file__), '..', 'profile-correction')
                     if profile_correction_dir not in sys.path:
                         sys.path.insert(0, profile_correction_dir)
-                    from kml_profile_corrector import KMLProfileCorrector
+                    from kml_profile_corrector import KMLProfileCorrector  # type: ignore
             except ImportError as e1:
                 try:
                     # Fallback: Try the opposite approach
@@ -1216,12 +1223,12 @@ class AirspaceCheckerGUI:
                     else:
                         # Try direct import without path manipulation
                         pass
-                    from kml_profile_corrector import KMLProfileCorrector
+                    from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                 except ImportError as e2:
                     try:
                         # Final fallback - try alternative path
                         sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
-                        from kml_profile_corrector import KMLProfileCorrector
+                        from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                     except ImportError as e3:
                         raise ImportError(f"Failed to import KMLProfileCorrector: {e1}, {e2}, {e3}")
             
