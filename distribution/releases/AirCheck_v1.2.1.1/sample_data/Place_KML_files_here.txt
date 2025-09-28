@@ -1,1 +1,0 @@
-Place your KML flight profiles in this folder

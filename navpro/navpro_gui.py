@@ -20,6 +20,10 @@ from typing import Dict, Any
 # Add the project directory to Python path
 sys.path.append(str(Path(__file__).parent))
 
+# Import configuration and splash screen
+from config_manager import config
+from splash_screen import show_splash_with_config
+
 # Import our core functionality
 from core.flight_analyzer import FlightProfileAnalyzer
 from visualization.kml_generator import KMLVolumeService
@@ -33,21 +37,30 @@ except (ImportError, AttributeError):
         from .version import get_version
         VERSION = get_version()
     except (ImportError, AttributeError):
-        VERSION = "1.2.0"
+        VERSION = config.get_value('APPLICATION', 'version', '1.2.4')
 
 
 class AirspaceCheckerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title(f"Airspace Checker v{VERSION} - Flight Profile & Airspace Analyzer")
+        
+        # Initialize configuration
+        self.config = config
+        
+        # Ensure directories exist
+        self.config.ensure_directories()
+        
+        # Set window properties using configuration
+        app_name = self.config.get_value('APPLICATION', 'app_name', 'AirCheck')
+        self.root.title(f"{app_name} v{VERSION} - Flight Profile & Airspace Analyzer")
         self.root.geometry("900x800")
         self.root.minsize(700, 600)
         
-        # Variables for file paths and settings
+        # Variables for file paths and settings - use config defaults
         self.aixm_file = tk.StringVar()
         self.kml_file = tk.StringVar()
-        self.output_dir = tk.StringVar(value=str(Path.cwd() / "output"))
-        self.corridor_height = tk.IntVar(value=500)  # Default 500 ft
+        self.output_dir = tk.StringVar(value=str(self.config.get_output_data_path()))
+        self.corridor_height = tk.IntVar(value=self.config.get_int('PROCESSING', 'default_climb_rate', 500))
         self.corridor_width = tk.DoubleVar(value=5.0)  # Default 5.0 NM
         
         # Profile correction settings
@@ -286,10 +299,12 @@ class AirspaceCheckerGUI:
         
     def set_default_paths(self):
         """Set default file paths if files exist"""
-        data_dir = Path("data")
-        if data_dir.exists():
+        # Use configuration paths instead of hardcoded paths
+        input_data_dir = self.config.get_input_data_path()
+        
+        if input_data_dir.exists():
             # Look for most recent AIRAC cycle AIXM file
-            most_recent_aixm = self.find_most_recent_airac_file(data_dir)
+            most_recent_aixm = self.find_most_recent_airac_file(input_data_dir)
             if most_recent_aixm:
                 self.aixm_file.set(str(most_recent_aixm))
                 print(f"Auto-loaded AIRAC file: {most_recent_aixm.name}")
@@ -299,19 +314,21 @@ class AirspaceCheckerGUI:
                     self.airac_info_var.set(airac_info)
                     print(f"AIRAC info: {airac_info}")
             else:
-                print("No AIXM files found in data directory")
+                print(f"No AIXM files found in input directory: {input_data_dir}")
+        else:
+            print(f"Input data directory does not exist: {input_data_dir}")
             
-            # Set default output directory to 'output' if it doesn't exist, create it
-            output_dir = Path("output")
-            if not output_dir.exists():
-                try:
-                    output_dir.mkdir(exist_ok=True)
-                    print(f"Created output directory: {output_dir}")
-                except Exception as e:
-                    print(f"Could not create output directory: {e}")
-            
-            if output_dir.exists():
-                self.output_dir.set(str(output_dir.absolute()))
+        # Set default output directory using config
+        output_dir = self.config.get_output_data_path()
+        if not output_dir.exists():
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                print(f"Created output directory: {output_dir}")
+            except Exception as e:
+                print(f"Could not create output directory: {e}")
+        
+        if output_dir.exists():
+            self.output_dir.set(str(output_dir.absolute()))
     
     def find_most_recent_airac_file(self, data_dir):
         """Find the most recent AIRAC cycle AIXM file in the data directory"""
@@ -360,10 +377,15 @@ class AirspaceCheckerGUI:
     
     def browse_aixm(self):
         """Browse for AIXM XML file"""
+        # Use configured input data path as initial directory
+        initial_dir = str(self.config.get_input_data_path())
+        if not Path(initial_dir).exists():
+            initial_dir = str(self.config.data_root)
+        
         filename = filedialog.askopenfilename(
             title="Select AIXM XML File",
             filetypes=[("XML files", "*.xml"), ("All files", "*.*")],
-            initialdir="data" if Path("data").exists() else "."
+            initialdir=initial_dir
         )
         if filename:
             old_aixm = self.aixm_file.get()
@@ -378,10 +400,15 @@ class AirspaceCheckerGUI:
     
     def browse_kml(self):
         """Browse for KML flight profile file"""
+        # Use configured sample data path as initial directory
+        initial_dir = str(self.config.get_sample_data_path())
+        if not Path(initial_dir).exists():
+            initial_dir = str(self.config.data_root)
+            
         filename = filedialog.askopenfilename(
             title="Select KML Flight Profile",
             filetypes=[("KML files", "*.kml"), ("All files", "*.*")],
-            initialdir="data" if Path("data").exists() else "."
+            initialdir=initial_dir
         )
         if filename:
             self.kml_file.set(filename)
@@ -686,25 +713,9 @@ class AirspaceCheckerGUI:
                     except ImportError as e3:
                         raise ImportError(f"Failed to import AIXMExtractor after all attempts:\n  1: {e1}\n  2: {e2}\n  3: {e3}")
             
-            # Set up paths - handle both development and deployed environments
-            if os.path.exists("data/airspaces.db"):
-                # Development environment - database in project data folder
-                db_path = str(Path("data/airspaces.db"))
-                self.log_info("📁 Using development database path: data/airspaces.db")
-            elif os.path.exists("sample_data/airspaces.db"):
-                # Deployed environment - database in sample_data folder
-                db_path = str(Path("sample_data/airspaces.db"))
-                self.log_info("📁 Using deployed database path: sample_data/airspaces.db")
-            else:
-                # Create in sample_data folder (for deployed) or data folder (for dev)
-                if Path("sample_data").exists():
-                    db_path = str(Path("sample_data/airspaces.db"))
-                    self.log_info("📁 Creating database in deployed location: sample_data/airspaces.db")
-                else:
-                    # Ensure data directory exists
-                    Path("data").mkdir(exist_ok=True)
-                    db_path = str(Path("data/airspaces.db"))
-                    self.log_info("📁 Creating database in development location: data/airspaces.db")
+            # Set up paths using configuration system
+            db_path = str(self.config.get_database_path())
+            self.log_info(f"📁 Using database path: {db_path}")
             
             # Remove old database if it exists
             if os.path.exists(db_path):
@@ -909,65 +920,57 @@ class AirspaceCheckerGUI:
             self.root.after(0, self._analysis_complete)
     
     def _view_profile(self, kml_file, profile_type):
-        """View profile using the enhanced profile viewer"""
+        """View profile using the enhanced profile viewer - internal implementation"""
         try:
-            # Import required modules
             import sys
-            import subprocess
-            
-            # Determine the correct path for the profile viewer script
-            def is_bundled():
-                return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-            
-            if is_bundled():
-                # In PyInstaller bundle, script is in the same directory as the executable
-                exe_dir = Path(sys.executable).parent
-                viewer_script = exe_dir / "kml_profile_viewer.py"
-            else:
-                # In development, script is in profile-correction directory
-                profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
-                viewer_script = profile_correction_dir / "kml_profile_viewer.py"
-            
             self.log_processing(f"📊 Opening {profile_type} profile visualization...")
-            self.log_processing(f"   Looking for viewer script at: {viewer_script}")
             
-            # Use subprocess approach to avoid matplotlib threading issues with tkinter
-            if viewer_script.exists():
-                # Run in separate process to avoid GUI conflicts
-                def is_bundled():
-                    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-                
-                if is_bundled():
-                    # In bundled executable, we need to run Python directly, not the exe
-                    # Find Python executable in the system
-                    import shutil
-                    python_exe = shutil.which('python')
-                    if not python_exe:
-                        python_exe = shutil.which('python3')
-                    if not python_exe:
-                        # Fallback to the Python that built the executable
-                        python_exe = sys.executable.replace('AirCheck.exe', 'python.exe')
+            # Use internal import instead of external script
+            try:
+                # Import the profile viewer directly as a module
+                if getattr(sys, 'frozen', False):
+                    # In PyInstaller bundle, import from bundled modules
+                    import importlib.util
                     
-                    cmd = [python_exe, str(viewer_script), kml_file]
-                    self.log_processing(f"   Using Python: {python_exe}")
+                    # Try to import the bundled module
+                    try:
+                        from kml_profile_viewer import KMLProfileViewer
+                        self.log_processing("   Using bundled profile viewer module")
+                    except ImportError:
+                        # Fallback: try profile-correction module path
+                        sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
+                        from kml_profile_viewer import KMLProfileViewer
+                        self.log_processing("   Using profile-correction module")
                 else:
-                    # In development, use sys.executable (python interpreter)
-                    cmd = [sys.executable, str(viewer_script), kml_file]
-                    self.log_processing(f"   Using Python: {sys.executable}")
+                    # In development, import from profile-correction directory
+                    sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
+                    from kml_profile_viewer import KMLProfileViewer
+                    self.log_processing("   Using development profile viewer")
                 
-                # Use DETACHED_PROCESS on Windows to prevent console window
-                if sys.platform == "win32":
-                    subprocess.Popen(cmd, creationflags=subprocess.DETACHED_PROCESS)
-                else:
-                    subprocess.Popen(cmd)
-                    
-                self.log_processing(f"📊 Profile viewer launched for {Path(kml_file).name}")
-            else:
-                raise FileNotFoundError(f"Profile viewer script not found: {viewer_script}")
-            
+                # Create and run the viewer directly
+                def run_viewer():
+                    try:
+                        viewer = KMLProfileViewer()
+                        viewer.visualize_profile(str(kml_file))
+                        self.log_success(f"✅ {profile_type.title()} profile viewer opened successfully")
+                    except Exception as e:
+                        self.log_error(f"❌ Error in profile viewer: {e}")
+                        import traceback
+                        self.log_output(traceback.format_exc(), "error")
+                
+                # Run viewer in a separate thread to avoid blocking the GUI
+                import threading
+                viewer_thread = threading.Thread(target=run_viewer, daemon=True)
+                viewer_thread.start()
+                
+            except ImportError as e:
+                self.log_error(f"❌ Cannot import profile viewer: {e}")
+                self.log_warning("⚠️  Profile viewer module not available")
+                
         except Exception as e:
-            self.log_processing(f"❌ Profile viewer failed: {str(e)}")
-            messagebox.showerror("Error", f"Failed to open profile viewer: {str(e)}")
+            self.log_error(f"❌ Failed to open {profile_type} profile viewer: {e}")
+            import traceback
+            self.log_output(traceback.format_exc(), "error")
     
     def disable_buttons(self):
         """Disable all action buttons during processing"""

@@ -1,0 +1,3 @@
+@echo off
+echo Starting AirCheck v1.2.4...
+start "" "AirCheck.exe"

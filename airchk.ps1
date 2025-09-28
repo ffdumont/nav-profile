@@ -10,7 +10,7 @@ param(
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = $ScriptDir
 $VenvDir = Join-Path -Path $ProjectDir -ChildPath ".venv"
-$PythonScript = Join-Path -Path $ProjectDir -ChildPath "navpro" | Join-Path -ChildPath "navpro.py"
+$PythonScript = Join-Path -Path $ProjectDir -ChildPath "navpro" | Join-Path -ChildPath "navpro_cli.py"
 
 # Check if virtual environment exists and use it
 $VenvActivate = Join-Path -Path $VenvDir -ChildPath "Scripts" | Join-Path -ChildPath "Activate.ps1"

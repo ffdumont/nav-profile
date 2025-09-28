@@ -9,6 +9,17 @@ import sqlite3
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
+import sys
+import os
+
+# Add parent directory to path for config access
+sys.path.append(str(Path(__file__).parent.parent))
+
+try:
+    from config_manager import config
+except ImportError:
+    # Fallback if config not available
+    config = None
 
 # Configuration du logging
 logging.basicConfig(

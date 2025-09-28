@@ -5,7 +5,7 @@ REM Auto-detects and activates virtual environment if available
 set "SCRIPT_DIR=%~dp0"
 set "PROJECT_DIR=%SCRIPT_DIR%.."
 set "VENV_DIR=%PROJECT_DIR%\.venv"
-set "PYTHON_SCRIPT=%PROJECT_DIR%\navpro\navpro.py"
+set "PYTHON_SCRIPT=%PROJECT_DIR%\navpro\navpro_cli.py"
 
 REM Check if virtual environment exists and activate it
 if exist "%VENV_DIR%\Scripts\activate.bat" (
