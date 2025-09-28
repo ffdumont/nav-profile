@@ -25,7 +25,7 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# Note: Keep aircheck.spec for our custom PyInstaller build configuration
 
 # Installer logs
 pip-log.txt
@@ -99,4 +99,15 @@ flight_profile_*.kml
 # Output directory - generated corrected profiles and analysis files
 output/
 
+# VS Code workspace file (user-specific)
 nav-profile.code-workspace
+
+# Temporary test files
+test_*.py
+
+# PyInstaller build output (but keep distribution/ formal releases)
+build/
+dist/
+
+# Duplicate release directories in root
+AirCheck_v*/
