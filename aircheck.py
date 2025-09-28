@@ -85,47 +85,71 @@ def main():
                 splash_window.overrideredirect(True)  # Remove window decorations
                 splash_window.attributes('-topmost', True)  # Keep on top
                 
+                # Set background color
+                splash_window.configure(bg='white')
+                
                 # Center splash screen
-                width, height = 400, 180
+                width, height = 450, 200  # Slightly larger
+                splash_window.update_idletasks()  # Ensure window is created
                 screen_width = splash_window.winfo_screenwidth()
                 screen_height = splash_window.winfo_screenheight()
                 x = (screen_width - width) // 2
                 y = (screen_height - height) // 2
                 splash_window.geometry(f"{width}x{height}+{x}+{y}")
                 
-                # Splash content
-                frame = tk.Frame(splash_window, bg='white', bd=2, relief='raised')
-                frame.pack(fill='both', expand=True, padx=2, pady=2)
+                # Main splash frame with border
+                main_frame = tk.Frame(splash_window, bg='white', bd=3, relief='ridge')
+                main_frame.pack(fill='both', expand=True, padx=3, pady=3)
                 
-                # Title
-                title_label = tk.Label(frame, text="AirCheck", font=('Arial', 16, 'bold'), bg='white', fg='#2C3E50')
-                title_label.pack(pady=20)
+                # Title with larger font and color
+                title_label = tk.Label(main_frame, text="AirCheck", 
+                                     font=('Arial', 18, 'bold'), 
+                                     bg='white', fg='#2C3E50',
+                                     pady=15)
+                title_label.pack()
                 
-                # Version
+                # Version with contrasting colors
                 version = config.get_value('APPLICATION', 'version', '1.2.4')
-                version_label = tk.Label(frame, text=f"Version {version}", font=('Arial', 10), bg='white', fg='#7F8C8D')
-                version_label.pack()
+                version_label = tk.Label(main_frame, text=f"Version {version}", 
+                                       font=('Arial', 11, 'normal'), 
+                                       bg='white', fg='#E74C3C')
+                version_label.pack(pady=5)
                 
-                # Status
+                # Status message
                 status_var = tk.StringVar(value="Initializing application...")
-                status_label = tk.Label(frame, textvariable=status_var, font=('Arial', 9), bg='white', fg='#34495E')
+                status_label = tk.Label(main_frame, textvariable=status_var, 
+                                      font=('Arial', 10), 
+                                      bg='white', fg='#34495E')
                 status_label.pack(pady=10)
                 
-                # Log line
-                log_label = tk.Label(frame, text="• Starting AirCheck application...", font=('Arial', 8), bg='white', fg='#2980B9', justify='left', anchor='w')
-                log_label.pack(pady=(5, 10), padx=10, fill='x')
+                # Progress message
+                log_label = tk.Label(main_frame, text="• Starting AirCheck application...", 
+                                   font=('Arial', 9), 
+                                   bg='white', fg='#3498DB', 
+                                   justify='left', anchor='w')
+                log_label.pack(pady=(5, 15), padx=20, fill='x')
                 
                 # Progress bar
                 from tkinter import ttk
                 progress_var = tk.DoubleVar(value=10)
-                progress_bar = ttk.Progressbar(frame, variable=progress_var, maximum=100, length=300)
+                progress_bar = ttk.Progressbar(main_frame, variable=progress_var, 
+                                             maximum=100, length=350, 
+                                             style='TProgressbar')
                 progress_bar.pack(pady=10)
                 
-                # Force splash to appear
+                # Force immediate display
                 splash_window.update_idletasks()
                 splash_window.update()
                 splash_window.lift()
                 splash_window.focus_force()
+                
+                # Ensure all widgets are visible
+                main_frame.update_idletasks()
+                title_label.update_idletasks()
+                version_label.update_idletasks()
+                status_label.update_idletasks()
+                log_label.update_idletasks()
+                progress_bar.update_idletasks()
                 
                 def update_splash(progress, status, log_message=None):
                     if splash_window and splash_window.winfo_exists():
@@ -134,13 +158,15 @@ def main():
                             status_var.set(status)
                             if log_message:
                                 log_label.config(text=log_message)
+                            # Force update of all components
                             splash_window.update_idletasks()
                             splash_window.update()
+                            main_frame.update_idletasks()
                         except Exception:
                             pass
                 
-                # Show initial progress
-                update_splash(10, "Initializing application...", "• Starting AirCheck application...")
+                # Show initial progress with forced update
+                update_splash(15, "Loading configuration...", "• Reading application settings...")
                 
             except Exception as e:
                 print(f"Failed to create splash screen: {e}")
