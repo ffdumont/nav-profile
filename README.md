@@ -77,8 +77,10 @@ nav-profile/
 
 ### 🛩️ Airspace Checker Analysis
 - **Professional Windows GUI**: Clean, intuitive desktop application
+- **Enhanced Airspace Organization**: 📁 **NEW v1.2.5** - Separate "Crossed Airspaces" and "Surrounding Airspaces" folders in Google Earth
 - **Critical Airspace Detection**: Automatic highlighting of Class A, Prohibited (P), and Restricted (R) zones  
-- **Google Earth Integration**: Auto-launch with organized KML folders by airspace type
+- **Smart Corridor Analysis**: Distinguishes between directly crossed airspaces and surrounding corridor airspaces
+- **Google Earth Integration**: Auto-launch with organized KML folders by airspace type and crossing status
 - **Flight Path Support**: Both navigation routes and GPS traces (thousands of points)
 - **Customizable Corridors**: Configurable vertical (±feet) and horizontal (±nautical miles) search
 - **Real-time Analysis**: Live processing with progress indicators and status updates
@@ -104,6 +106,19 @@ nav-profile/
 3. **Configure**: Set corridor height (±ft) and width (±NM)
 4. **Analyze**: Click "List Airspace Crossings" for text analysis
 5. **Visualize**: Click "Generate KML & Open in Google Earth"
+
+### 🆕 Enhanced Google Earth Organization (v1.2.5)
+The generated KML files now organize airspaces into two main categories:
+
+- **✈️ Crossed Airspaces**: Airspaces directly intersected by your flight path
+  - These are the airspaces you will actually fly through
+  - Critical for flight planning and clearance requirements
+
+- **🔍 Surrounding Airspaces**: Airspaces within your flight corridor but not directly crossed
+  - These provide situational awareness of nearby controlled airspace
+  - Useful for alternate routing and emergency planning
+
+Each category is further organized by airspace type (CTR, TMA, RAS, etc.) with appropriate emojis and counts for easy visualization in Google Earth.
 
 ### Profile Correction Workflow
 ```bash
@@ -1069,7 +1084,30 @@ Each airspace record contains:
 ⚡ **High Performance** - Sub-second query responses  
 📚 **Comprehensive Documentation** - Complete usage guide  
 
-## 📖 Documentation / Documentation
+## � Release Notes / Notes de Version
+
+### 🆕 Version 1.2.5 (September 28, 2025)
+**Enhanced Airspace Organization & Analysis**
+
+#### ✨ New Features
+- **🏗️ Enhanced Google Earth Organization**: KML files now organize airspaces into two distinct categories:
+  - **✈️ Crossed Airspaces**: Airspaces directly intersected by the flight path
+  - **🔍 Surrounding Airspaces**: Airspaces within the flight corridor but not directly crossed
+- **📊 Improved Analysis Reporting**: Better distinction between actual crossings and corridor discoveries
+- **🛠️ Enhanced CLI & GUI**: Both interfaces now generate the improved folder structure
+
+#### 🔧 Technical Improvements
+- Enhanced `generate_multiple_airspaces_kml()` function with crossing status parameter
+- Improved filtering logic to preserve both crossed and surrounding airspaces
+- Better logging and user feedback for airspace categorization
+- Fixed Pylance import warnings across the codebase
+
+#### 📍 Benefits for Pilots
+- **Better Situational Awareness**: Clear separation between airspaces you'll enter vs nearby airspaces
+- **Improved Flight Planning**: Focus on actual crossings while maintaining awareness of surrounding areas
+- **Enhanced Safety**: Better understanding of the airspace environment around your flight path
+
+## �📖 Documentation / Documentation
 
 ### Profile Correction
 - `profile-correction/README_PROFILE_CORRECTOR.md` - Profile correction documentation

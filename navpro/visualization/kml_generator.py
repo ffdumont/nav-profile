@@ -461,7 +461,8 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
     def generate_multiple_airspaces_kml(self, airspace_ids: List[int], flight_name: str = None, 
                                       flight_coordinates: List[tuple] = None,
                                       flight_waypoints: List[tuple] = None, 
-                                      show_intermediate_points: bool = False) -> str:
+                                      show_intermediate_points: bool = False,
+                                      crossing_status: dict = None) -> str:
         """Generate KML for multiple airspaces organized by type into folders
         
         Args:
@@ -470,6 +471,8 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
             flight_coordinates: List of (lon, lat, alt_ft) tuples for original flight path
             flight_waypoints: List of (name, lon, lat, alt_ft) tuples for waypoint names
             show_intermediate_points: Whether to show intermediate climb/descent points
+            crossing_status: Dict mapping airspace_id -> {'is_actual_crossing': bool} to separate 
+                            crossed airspaces from surrounding airspaces
         """
         # Create KML document
         kml = ET.Element('kml', xmlns="http://www.opengis.net/kml/2.2")
@@ -482,10 +485,11 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
         else:
             doc_name.text = f"Multiple Airspaces ({len(airspace_ids)} airspaces)"
         
-        # Group airspaces by type
-        airspaces_by_type = {}
+        # Separate airspaces by crossing status and group by type
+        crossed_airspaces = {}  # type -> list of airspaces
+        surrounding_airspaces = {}  # type -> list of airspaces
         
-        # Get airspace details to group by type
+        # Get airspace details to group by type and crossing status
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         
@@ -496,57 +500,108 @@ Altitude range: {min_alt_display} - {max_alt_display} AMSL{geometry_note}"""
             
             if row:
                 airspace_type = row['code_type'].upper() if row['code_type'] else 'OTHER'
-                if airspace_type not in airspaces_by_type:
-                    airspaces_by_type[airspace_type] = []
-                airspaces_by_type[airspace_type].append({
+                airspace_data = {
                     'id': airspace_id,
                     'name': row['name'] if row['name'] else 'Unknown',
                     'type': airspace_type,
                     'class': row['airspace_class'] if row['airspace_class'] else 'UNKNOWN'
-                })
+                }
+                
+                # Determine if this airspace is actually crossed or just surrounding
+                is_crossed = True  # Default to crossed for backward compatibility
+                if crossing_status and airspace_id in crossing_status:
+                    is_crossed = crossing_status[airspace_id].get('is_actual_crossing', True)
+                
+                # Add to appropriate category
+                target_dict = crossed_airspaces if is_crossed else surrounding_airspaces
+                if airspace_type not in target_dict:
+                    target_dict[airspace_type] = []
+                target_dict[airspace_type].append(airspace_data)
         
         conn.close()
         
-        # Create KML folders for each airspace type
+        # Define type order and emojis
         type_order = ['CTR', 'TMA', 'RAS', 'R', 'D', 'P', 'SECTOR', 'FIR', 'OTHER']
+        type_emoji = {
+            'CTR': '🏢', 'TMA': '🛬', 'RAS': '📡', 'R': '⛔', 
+            'D': '🚫', 'P': '🔒', 'SECTOR': '📶', 'FIR': '🌍', 'OTHER': '❓'
+        }
         
-        for airspace_type in type_order:
-            if airspace_type not in airspaces_by_type:
-                continue
+        # Function to create folders for a category of airspaces
+        def create_airspace_folders(parent_element, airspaces_by_type, category_name):
+            if not airspaces_by_type:
+                return
                 
-            airspaces = airspaces_by_type[airspace_type]
-            
-            # Create folder for this type
-            folder = ET.SubElement(document, 'Folder')
-            
-            # Folder name with emoji and count
-            folder_name = ET.SubElement(folder, 'name')
-            type_emoji = {
-                'CTR': '🏢', 'TMA': '🛬', 'RAS': '📡', 'R': '⛔', 
-                'D': '🚫', 'P': '🔒', 'SECTOR': '📶', 'FIR': '🌍', 'OTHER': '❓'
-            }
-            emoji = type_emoji.get(airspace_type, '❓')
-            folder_name.text = f"{emoji} {airspace_type} ({len(airspaces)} airspaces)"
-            
-            # Folder description
-            folder_desc = ET.SubElement(folder, 'description')
-            folder_desc.text = f"{airspace_type} airspaces encountered along flight path"
-            
-            # Add each airspace to this folder
-            for airspace in airspaces:
-                try:
-                    single_kml_str = self.generate_airspace_kml(airspace['id'])
-                    single_kml = ET.fromstring(single_kml_str)
-                    
-                    # Extract placemarks from single KML
-                    single_doc = single_kml.find('.//{http://www.opengis.net/kml/2.2}Document')
-                    if single_doc is not None:
-                        for placemark in single_doc.findall('.//{http://www.opengis.net/kml/2.2}Placemark'):
-                            folder.append(placemark)
-                            
-                except Exception as e:
-                    print(f"Warning: Failed to generate KML for airspace {airspace['id']} ({airspace['name']}): {e}")
+            for airspace_type in type_order:
+                if airspace_type not in airspaces_by_type:
                     continue
+                    
+                airspaces = airspaces_by_type[airspace_type]
+                
+                # Create folder for this type
+                folder = ET.SubElement(parent_element, 'Folder')
+                
+                # Folder name with emoji and count
+                folder_name = ET.SubElement(folder, 'name')
+                emoji = type_emoji.get(airspace_type, '❓')
+                folder_name.text = f"{emoji} {airspace_type} ({len(airspaces)} airspaces)"
+                
+                # Folder description
+                folder_desc = ET.SubElement(folder, 'description')
+                folder_desc.text = f"{airspace_type} airspaces {category_name}"
+                
+                # Add each airspace to this folder
+                for airspace in airspaces:
+                    try:
+                        single_kml_str = self.generate_airspace_kml(airspace['id'])
+                        single_kml = ET.fromstring(single_kml_str)
+                        
+                        # Extract placemarks from single KML
+                        single_doc = single_kml.find('.//{http://www.opengis.net/kml/2.2}Document')
+                        if single_doc is not None:
+                            for placemark in single_doc.findall('.//{http://www.opengis.net/kml/2.2}Placemark'):
+                                folder.append(placemark)
+                                
+                    except Exception as e:
+                        print(f"Warning: Failed to generate KML for airspace {airspace['id']} ({airspace['name']}): {e}")
+                        continue
+        
+        # Create main category folders if we have crossing status information
+        if crossing_status and surrounding_airspaces:
+            # Create "Crossed Airspaces" folder
+            if crossed_airspaces:
+                crossed_folder = ET.SubElement(document, 'Folder')
+                crossed_folder_name = ET.SubElement(crossed_folder, 'name')
+                crossed_count = sum(len(airspaces) for airspaces in crossed_airspaces.values())
+                crossed_folder_name.text = f"✈️ Crossed Airspaces ({crossed_count} airspaces)"
+                
+                crossed_folder_desc = ET.SubElement(crossed_folder, 'description')
+                crossed_folder_desc.text = "Airspaces directly crossed by the flight path"
+                
+                create_airspace_folders(crossed_folder, crossed_airspaces, "directly crossed by flight path")
+            
+            # Create "Surrounding Airspaces" folder
+            if surrounding_airspaces:
+                surrounding_folder = ET.SubElement(document, 'Folder')
+                surrounding_folder_name = ET.SubElement(surrounding_folder, 'name')
+                surrounding_count = sum(len(airspaces) for airspaces in surrounding_airspaces.values())
+                surrounding_folder_name.text = f"🔍 Surrounding Airspaces ({surrounding_count} airspaces)"
+                
+                surrounding_folder_desc = ET.SubElement(surrounding_folder, 'description')
+                surrounding_folder_desc.text = "Airspaces in the flight corridor but not directly crossed"
+                
+                create_airspace_folders(surrounding_folder, surrounding_airspaces, "surrounding the flight corridor")
+        else:
+            # Fallback: Use the original behavior if no crossing status provided
+            # Group all airspaces by type (backward compatibility)
+            all_airspaces_by_type = crossed_airspaces.copy()
+            for airspace_type, airspaces in surrounding_airspaces.items():
+                if airspace_type in all_airspaces_by_type:
+                    all_airspaces_by_type[airspace_type].extend(airspaces)
+                else:
+                    all_airspaces_by_type[airspace_type] = airspaces
+            
+            create_airspace_folders(document, all_airspaces_by_type, "encountered along flight path")
         
         # Add flight path at the top level if coordinates are provided
         if flight_coordinates or flight_waypoints:

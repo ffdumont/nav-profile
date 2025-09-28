@@ -810,15 +810,15 @@ class KMLProfileCorrector:
             
             # Try different import paths for the flight analyzer and KML service
             try:
-                from core.flight_analyzer import FlightProfileAnalyzer
-                from visualization.kml_generator import KMLVolumeService
-                from core.spatial_query import KMLFlightPathParser
+                from core.flight_analyzer import FlightProfileAnalyzer  # type: ignore
+                from visualization.kml_generator import KMLVolumeService  # type: ignore
+                from core.spatial_query import KMLFlightPathParser  # type: ignore
                 db_path = os.path.join(parent_dir, 'data', 'airspaces.db')
             except ImportError as e1:
                 try:
-                    from navpro.core.flight_analyzer import FlightProfileAnalyzer
-                    from navpro.visualization.kml_generator import KMLVolumeService
-                    from navpro.core.spatial_query import KMLFlightPathParser
+                    from navpro.core.flight_analyzer import FlightProfileAnalyzer  # type: ignore
+                    from navpro.visualization.kml_generator import KMLVolumeService  # type: ignore
+                    from navpro.core.spatial_query import KMLFlightPathParser  # type: ignore
                     db_path = os.path.join(parent_dir, 'data', 'airspaces.db')
                 except ImportError as e2:
                     print(f"WARNING: Could not import required modules: {e1}, {e2}")
@@ -846,11 +846,24 @@ class KMLProfileCorrector:
                 print("   The corrected profile KML was still saved successfully.")
                 return
             
-            # Extract unique airspace IDs (preserve order)
-            airspace_ids = [crossing['airspace']['id'] for crossing in crossings]
-            unique_ids = list(dict.fromkeys(airspace_ids))  # Remove duplicates while preserving order
+            # Extract unique airspace IDs and build crossing status map (preserve order)
+            unique_ids = []
+            crossing_status = {}
+            
+            for crossing in crossings:
+                airspace_id = crossing['airspace']['id']
+                if airspace_id not in crossing_status:
+                    unique_ids.append(airspace_id)
+                    crossing_status[airspace_id] = {
+                        'is_actual_crossing': crossing.get('is_actual_crossing', True)
+                    }
+            
+            # Count crossed vs surrounding for logging
+            crossed_count = sum(1 for status in crossing_status.values() if status['is_actual_crossing'])
+            surrounding_count = len(unique_ids) - crossed_count
             
             print(f"   Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces")
+            print(f"   • {crossed_count} crossed directly, {surrounding_count} surrounding in corridor")
             
             # Generate airspace KML file name in same directory as output
             output_dir = os.path.dirname(output_file)
@@ -870,7 +883,8 @@ class KMLProfileCorrector:
                 unique_ids, 
                 flight_name=flight_name,
                 flight_coordinates=flight_coordinates,
-                flight_waypoints=flight_waypoints
+                flight_waypoints=flight_waypoints,
+                crossing_status=crossing_status
             )
             
             # Write KML file

@@ -1341,26 +1341,49 @@ class AirspaceCheckerGUI:
                 self.log_error("❌ No airspace crossings found - no KML files to generate")
                 return
             
-            # Use actual crossings for KML generation (more relevant than corridor discoveries)
+            # Separate actual crossings from corridor discoveries for analysis
             actual_crossings = [c for c in crossings if c.get('is_actual_crossing', True)]
+            corridor_only = [c for c in crossings if not c.get('is_actual_crossing', True)]
             
-            if not actual_crossings:
-                self.log_output("❌ No actual flight path crossings found - using corridor discoveries")
-                actual_crossings = crossings  # Fall back to all crossings
+            self.log_output(f"📊 Analysis Results:")
+            self.log_output(f"   Total airspaces detected: {len(crossings)}")
+            self.log_output(f"   Actually crossed: {len(actual_crossings)}")
+            self.log_output(f"   Surrounding (corridor only): {len(corridor_only)}")
             
-            # Filter crossings
+            # Filter crossings but preserve crossing status for folder organization
             filter_types = {'SECTOR', 'FIR', 'D-OTHER'}
-            filtered_crossings = [c for c in actual_crossings 
-                                if c['airspace'].get('code_type', '').upper() not in filter_types]
+            
+            # Filter both actual crossings and corridor-only discoveries
+            filtered_actual = [c for c in actual_crossings 
+                             if c['airspace'].get('code_type', '').upper() not in filter_types]
+            filtered_corridor = [c for c in corridor_only 
+                               if c['airspace'].get('code_type', '').upper() not in filter_types]
+            
+            # Combine filtered results while preserving crossing status
+            filtered_crossings = filtered_actual + filtered_corridor
             
             if not filtered_crossings:
                 self.log_output("❌ No relevant airspace crossings after filtering")
                 return
             
-            # Get unique airspace IDs
-            unique_ids = list({c['airspace']['id'] for c in filtered_crossings})
+            # Get unique airspace IDs and build crossing status map
+            unique_ids = []
+            crossing_status = {}
+            
+            for crossing in filtered_crossings:
+                airspace_id = crossing['airspace']['id']
+                if airspace_id not in crossing_status:
+                    unique_ids.append(airspace_id)
+                    crossing_status[airspace_id] = {
+                        'is_actual_crossing': crossing.get('is_actual_crossing', True)
+                    }
+            
+            # Count crossed vs surrounding for logging
+            crossed_count = sum(1 for status in crossing_status.values() if status['is_actual_crossing'])
+            surrounding_count = len(unique_ids) - crossed_count
             
             self.log_output(f"✅ Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces")
+            self.log_output(f"   • {crossed_count} crossed directly, {surrounding_count} surrounding in corridor")
             self.log_output(">> Generating organized KML profile...")
             
             # Generate KML
@@ -1375,14 +1398,15 @@ class AirspaceCheckerGUI:
             
             # Generate organized KML
             self.log_output(f"   >> Creating organized profile KML: {output_file.name}")
-            self.log_output(f"      >> Organizing airspaces into KML folders by type")
+            self.log_output(f"      >> Organizing airspaces into 'Crossed' and 'Surrounding' folders")
             
             kml_content = kml_service.generate_multiple_airspaces_kml(
                 unique_ids,
                 flight_name=flight_name,
                 flight_coordinates=flight_coordinates,
                 flight_waypoints=flight_waypoints,
-                show_intermediate_points=self.show_intermediate_points.get()
+                show_intermediate_points=self.show_intermediate_points.get(),
+                crossing_status=crossing_status
             )
             
             # Write KML file
@@ -1394,7 +1418,7 @@ class AirspaceCheckerGUI:
             self.log_output("=" * 60)
             self.log_output(f"🎉 KML generation complete!")
             self.log_output(f"   Profile: 1 organized KML file with {len(unique_ids)} airspaces")
-            self.log_output(f"   Organization: Airspaces grouped by type in Google Earth folders")
+            self.log_output(f"   Organization: Airspaces grouped by crossing status (Crossed/Surrounding)")
             self.log_output(f"   File: {output_file}")
             
             # Launch in Google Earth

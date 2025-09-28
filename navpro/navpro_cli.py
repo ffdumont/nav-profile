@@ -12,12 +12,18 @@ from pathlib import Path
 
 # Initialize colorama for cross-platform color support
 try:
-    from colorama import init, Fore, Style
+    from colorama import init, Fore, Style  # type: ignore
     init(autoreset=True)
     COLORS_AVAILABLE = True
 except ImportError:
     # Fallback if colorama not available
     COLORS_AVAILABLE = False
+    # Define dummy objects for when colorama is not available
+    class _DummyColor:
+        def __getattr__(self, name):
+            return ""
+    Fore = _DummyColor()
+    Style = _DummyColor()
     class Fore:
         RED = ""
         GREEN = ""
@@ -390,8 +396,8 @@ def cmd_fix_profile_for_subcommand(args, kml_file):
     sys.path.append(str(Path(__file__).parent.parent / "profile-correction"))
     
     try:
-        from kml_profile_corrector import KMLProfileCorrector
-        from kml_profile_viewer import KMLProfileViewer
+        from kml_profile_corrector import KMLProfileCorrector  # type: ignore
+        from kml_profile_viewer import KMLProfileViewer  # type: ignore
     except ImportError as e:
         print(f"❌ Error importing profile correction modules: {e}")
         print("   Make sure the altitude-correction modules are available")
@@ -836,14 +842,28 @@ def cmd_generate_profile(args):
             print("❌ No airspace crossings remaining after filtering - no KML files to generate")
             return
         
-        # Extract unique airspace IDs from filtered crossings
-        airspace_ids = [crossing['airspace']['id'] for crossing in filtered_crossings]
-        unique_ids = list(dict.fromkeys(airspace_ids))  # Preserve order, remove duplicates
+        # Extract unique airspace IDs and build crossing status map from filtered crossings
+        unique_ids = []
+        crossing_status = {}
+        
+        for crossing in filtered_crossings:
+            airspace_id = crossing['airspace']['id']
+            if airspace_id not in crossing_status:
+                unique_ids.append(airspace_id)
+                crossing_status[airspace_id] = {
+                    'is_actual_crossing': crossing.get('is_actual_crossing', True)
+                }
+        
+        # Count crossed vs surrounding for logging
+        crossed_count = sum(1 for status in crossing_status.values() if status['is_actual_crossing'])
+        surrounding_count = len(unique_ids) - crossed_count
         
         if filter_types:
             print(f">> Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (filtered out {filtered_count} {'/'.join(filter_types)} zones)")
         else:
             print(f">> Found {len(crossings)} crossings across {len(unique_ids)} unique airspaces (no filtering applied)")
+        
+        print(f"   • {crossed_count} crossed directly, {surrounding_count} surrounding in corridor")
         print(f">> Generating organized KML profile...")
         print()
         
@@ -861,20 +881,21 @@ def cmd_generate_profile(args):
             combined_path = output_dir / combined_filename
             
             print(f"   >> Generating organized profile KML: {combined_filename}...")
-            print(f"      >> Organizing airspaces into KML folders by type")
+            print(f"      >> Organizing airspaces into 'Crossed' and 'Surrounding' folders")
             
             # Parse flight coordinates and waypoint names for inclusion in combined KML
             from .core.spatial_query import KMLFlightPathParser
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(kml_file)
             flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(kml_file)
             
-            # Use generate_multiple_airspaces_kml method with flight path info
-            # This now organizes airspaces by type into KML folders
+            # Use generate_multiple_airspaces_kml method with flight path info and crossing status
+            # This now organizes airspaces by crossing status into KML folders
             kml_content = kml_service_gen.generate_multiple_airspaces_kml(
                 unique_ids, 
                 flight_name=flight_name,
                 flight_coordinates=flight_coordinates if flight_coordinates else None,
-                flight_waypoints=flight_waypoints if flight_waypoints else None
+                flight_waypoints=flight_waypoints if flight_waypoints else None,
+                crossing_status=crossing_status
             )
             
             # Write to file
