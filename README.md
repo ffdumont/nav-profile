@@ -20,10 +20,10 @@ Suite complète d'outils de navigation aéronautique pour l'analyse de fichiers 
 ### Option 2: Profile Correction Tools
 ```bash
 # Correct KML profile with realistic altitudes
-python profile-correction/kml_profile_corrector.py input.kml -o corrected.kml
+python navpro/profile-correction/kml_profile_corrector.py input.kml -o corrected.kml
 
 # Visualize corrected profile  
-python profile-correction/kml_profile_viewer.py corrected.kml
+python navpro/profile-correction/kml_profile_viewer.py corrected.kml
 
 # Batch processing
 ./scripts/kml_corrector.bat
@@ -44,7 +44,8 @@ nav-profile/
 │   │   └── visualization/              # KML generation
 │
 ├── ✈️ Profile Correction Tools
-│   ├── profile-correction/
+│   ├── navpro/
+│   │   ├── profile-correction/
 │   │   ├── kml_profile_corrector.py    # Universal profile corrector
 │   │   ├── kml_profile_viewer.py       # Flight profile visualizer
 │   │   └── aviation_utils.py           # Aviation utilities & APIs
@@ -123,11 +124,11 @@ Each category is further organized by airspace type (CTR, TMA, RAS, etc.) with a
 ### Profile Correction Workflow
 ```bash
 # Step 1: Correct the flight profile
-python profile-correction/kml_profile_corrector.py flight.kml -o corrected.kml \
+python navpro/profile-correction/kml_profile_corrector.py flight.kml -o corrected.kml \
   --climb-rate 500 --descent-rate 500 --ground-speed 120
 
 # Step 2: Review the corrected profile
-python profile-correction/kml_profile_viewer.py corrected.kml
+python navpro/profile-correction/kml_profile_viewer.py corrected.kml
 ```
 
 ## 📊 Profile Correction Example
@@ -261,7 +262,7 @@ pip install -r requirements.txt
 
 # Test installation
 airchk help
-python profile-correction/kml_profile_corrector.py --help
+python navpro/profile-correction/kml_profile_corrector.py --help
 ```
 
 ## 📞 Support & Troubleshooting
@@ -294,10 +295,8 @@ nav-profile/
 │   ├── core/                       # Flight analysis engine
 │   ├── data_processing/            # AIXM data processing
 │   ├── utils/                      # General utilities
-│   └── visualization/              # KML generation
-│
-├── ✈️ Profile Correction Tools
-│   └── profile-correction/
+│   ├── visualization/              # KML generation
+│   └── profile-correction/         # Profile correction tools
 │       ├── kml_profile_corrector.py   # Universal profile corrector
 │       ├── kml_profile_viewer.py      # Flight profile visualizer
 │       └── aviation_utils.py          # Aviation utilities & APIs
@@ -329,7 +328,7 @@ nav-profile/
 ### Altitude Profile Correction
 ```bash
 # Correct SDVFR flight profiles  
-cd profile-correction
+cd navpro/profile-correction
 python kml_profile_corrector.py input.kml -o corrected.kml
 
 # Visualize flight profiles
@@ -457,7 +456,7 @@ pip install -r requirements.txt
 
 # Test installation / Tester l'installation
 python navpro.py help
-python profile-correction/kml_profile_corrector.py --help
+python navpro/profile-correction/kml_profile_corrector.py --help
 ```
 
 ## 📖 Usage Guide
@@ -1110,8 +1109,8 @@ Each airspace record contains:
 ## �📖 Documentation / Documentation
 
 ### Profile Correction
-- `profile-correction/README_PROFILE_CORRECTOR.md` - Profile correction documentation
-- `profile-correction/aviation_utils.py` - Aviation utilities API reference
+- `navpro/profile-correction/README_PROFILE_CORRECTOR.md` - Profile correction documentation
+- `navpro/profile-correction/aviation_utils.py` - Aviation utilities API reference
 
 ### NavPro Core
 - `docs/` - Complete project documentation

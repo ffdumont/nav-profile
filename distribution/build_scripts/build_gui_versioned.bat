@@ -139,7 +139,7 @@ if exist "dist\AirCheck.exe" (
     
     REM Copy profile correction scripts
     echo Copying profile correction scripts...
-    set PROFILE_DIR=..\..\profile-correction
+    set PROFILE_DIR=..\..\navpro\profile-correction
     
     if exist "!PROFILE_DIR!\kml_profile_viewer.py" (
         copy "!PROFILE_DIR!\kml_profile_viewer.py" "!RELEASE_DIR!\"

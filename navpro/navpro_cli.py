@@ -393,7 +393,7 @@ def cmd_fix_profile_for_subcommand(args, kml_file):
     from pathlib import Path
     
     # Add profile-correction module to path
-    sys.path.append(str(Path(__file__).parent.parent / "profile-correction"))
+    sys.path.append(str(Path(__file__).parent / "profile-correction"))
     
     try:
         from kml_profile_corrector import KMLProfileCorrector  # type: ignore

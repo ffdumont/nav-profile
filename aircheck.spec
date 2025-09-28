@@ -9,7 +9,7 @@ from pathlib import Path
 # Get the project root directory
 project_root = Path(SPECPATH).resolve()
 navpro_path = project_root / "navpro"
-profile_correction_path = project_root / "profile-correction"
+profile_correction_path = project_root / "navpro" / "profile-correction"
 
 # Define paths to include
 data_files = [
@@ -56,9 +56,9 @@ hidden_imports = [
     'navpro.utils.config',
     'navpro.utils.search',
     'navpro.utils.validation',
-    'profile-correction.kml_profile_corrector',
-    'profile-correction.aviation_utils',
-    'profile-correction.kml_profile_viewer',
+    'navpro.profile-correction.kml_profile_corrector',
+    'navpro.profile-correction.aviation_utils',
+    'navpro.profile-correction.kml_profile_viewer',
 ]
 
 # Analysis configuration

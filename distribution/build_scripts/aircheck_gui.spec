@@ -5,7 +5,7 @@ a = Analysis(
     ['../../navpro/navpro_gui.py'],
     pathex=['../../navpro', '../../'],
     binaries=[],
-    datas=[('../../data/', 'data/'), ('../../profile-correction/', 'profile-correction/'), ('../../navpro/', 'navpro/')],
+    datas=[('../../data/', 'data/'), ('../../navpro/profile-correction/', 'profile-correction/'), ('../../navpro/', 'navpro/')],
     hiddenimports=[
         'navpro',
         'navpro.core',

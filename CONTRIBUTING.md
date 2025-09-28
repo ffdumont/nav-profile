@@ -43,7 +43,7 @@ git checkout -b feature/your-feature-name
 python navpro/navpro_gui.py
 
 # Test profile correction
-python profile-correction/kml_profile_corrector.py test_data/sample.kml
+python navpro/profile-correction/kml_profile_corrector.py test_data/sample.kml
 
 # Test command line interface
 python navpro/navpro.py --help

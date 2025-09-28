@@ -1,4 +1,4 @@
-# AirCheck v1.2.1.1
+# AirCheck v1.2.5
 
 Airspace Checker - Flight Profile & Airspace Analyzer
 
@@ -18,4 +18,4 @@ Airspace Checker - Flight Profile & Airspace Analyzer
 - Windows 10/11
 - Google Earth Pro (recommended for visualization)
 
-Built on: 2025-09-27 09:16:24
+Built on: 2025-09-28 20:17:26

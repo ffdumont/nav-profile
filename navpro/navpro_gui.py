@@ -804,7 +804,7 @@ class AirspaceCheckerGUI:
             # Import KMLProfileCorrector - handle both dev and packaged environments
             try:
                 # Try adding profile-correction directory to path (for development)
-                profile_correction_dir = Path(__file__).parent.parent / "profile-correction"
+                profile_correction_dir = Path(__file__).parent / "profile-correction"
                 sys.path.insert(0, str(profile_correction_dir))
                 from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                 self.log_info("✅ Profile corrector imported successfully (development path)")
@@ -948,13 +948,13 @@ class AirspaceCheckerGUI:
                         from kml_profile_viewer import KMLProfileViewer  # type: ignore
                         self.log_processing("   Using bundled profile viewer module")
                     except ImportError:
-                        # Fallback: try profile-correction module path
-                        sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
+                        # Fallback: try profile-correction module path (now inside navpro)
+                        sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
                         from kml_profile_viewer import KMLProfileViewer  # type: ignore
                         self.log_processing("   Using profile-correction module")
                 else:
-                    # In development, import from profile-correction directory
-                    sys.path.insert(0, str(Path(__file__).parent.parent / "profile-correction"))
+                    # In development, import from profile-correction directory inside navpro
+                    sys.path.insert(0, str(Path(__file__).parent / "profile-correction"))
                     from kml_profile_viewer import KMLProfileViewer  # type: ignore
                     self.log_processing("   Using development profile viewer")
                 
@@ -1211,8 +1211,8 @@ class AirspaceCheckerGUI:
                     import kml_profile_corrector  # type: ignore
                     from kml_profile_corrector import KMLProfileCorrector  # type: ignore
                 else:
-                    # In development, add profile-correction directory to path
-                    profile_correction_dir = os.path.join(os.path.dirname(__file__), '..', 'profile-correction')
+                    # In development, add profile-correction directory to path (now inside navpro)
+                    profile_correction_dir = os.path.join(os.path.dirname(__file__), 'profile-correction')
                     if profile_correction_dir not in sys.path:
                         sys.path.insert(0, profile_correction_dir)
                     from kml_profile_corrector import KMLProfileCorrector  # type: ignore
