@@ -39,22 +39,16 @@ if TYPE_CHECKING:
 try:
     from version import get_version
     VERSION = get_version()
-    print(f"DEBUG: Version from get_version(): {VERSION}")
 except (ImportError, AttributeError):
     try:
         from .version import get_version
         VERSION = get_version()
-        print(f"DEBUG: Version from .version.get_version(): {VERSION}")
     except (ImportError, AttributeError):
         try:
             from . import __version__
             VERSION = __version__
-            print(f"DEBUG: Version from .__version__: {VERSION}")
         except (ImportError, AttributeError):
             VERSION = config.get_value('APPLICATION', 'version', '1.2.4')
-            print(f"DEBUG: Version from config (fallback): {VERSION}")
-
-print(f"DEBUG: Final VERSION used in GUI: {VERSION}")
 
 
 class AirspaceCheckerGUI:
