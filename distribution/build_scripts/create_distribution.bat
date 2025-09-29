@@ -1,26 +1,56 @@
 @echo off
 REM AirCheck Distribution Package Creator
 REM This script creates a complete distribution package for Windows
+REM Supports both GUI and CLI versions
 
 echo ========================================
 echo AirCheck Distribution Package Creator
 echo ========================================
 echo.
+echo Choose build type:
+echo 1. GUI Only (traditional)
+echo 2. CLI Only  
+echo 3. Both GUI and CLI (recommended)
+echo.
+set /p build_choice="Enter choice (1-3): "
 
+if "%build_choice%"=="3" (
+    echo Building both GUI and CLI versions...
+    call build_dual_version.bat
+    goto end
+)
+
+REM Original single version build logic
 REM Create distribution directory
 if exist "AirCheck_Distribution" rmdir /s /q "AirCheck_Distribution"
 mkdir "AirCheck_Distribution"
 
-REM Copy executable
-if exist "dist\AirCheck.exe" (
-    echo Copying executable...
-    copy "dist\AirCheck.exe" "AirCheck_Distribution\AirCheck.exe"
-    echo ✓ AirCheck.exe copied
-) else (
-    echo ❌ ERROR: AirCheck.exe not found in dist folder!
-    echo Please run build_gui.bat first.
-    pause
-    exit /b 1
+if "%build_choice%"=="1" (
+    REM Copy GUI executable
+    if exist "dist\AirCheck.exe" (
+        echo Copying GUI executable...
+        copy "dist\AirCheck.exe" "AirCheck_Distribution\AirCheck.exe"
+        echo ✓ AirCheck.exe copied
+    ) else (
+        echo ❌ ERROR: AirCheck.exe not found in dist folder!
+        echo Please run build_gui.bat first.
+        pause
+        exit /b 1
+    )
+)
+
+if "%build_choice%"=="2" (
+    REM Copy CLI executable
+    if exist "dist\AirCheckCLI.exe" (
+        echo Copying CLI executable...
+        copy "dist\AirCheckCLI.exe" "AirCheck_Distribution\AirCheckCLI.exe"
+        echo ✓ AirCheckCLI.exe copied
+    ) else (
+        echo ❌ ERROR: AirCheckCLI.exe not found in dist folder!
+        echo Please build CLI version first.
+        pause
+        exit /b 1
+    )
 )
 
 REM Copy data files

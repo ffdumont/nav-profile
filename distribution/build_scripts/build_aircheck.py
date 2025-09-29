@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Enhanced build script for AirCheck GUI with automatic version management
+Enhanced build script for AirCheck with support for GUI, CLI, and dual builds
 
 Usage:
-    python build_aircheck.py [version]
+    python build_aircheck.py [version] [--gui-only | --cli-only | --dual]
     
 Examples:
-    python build_aircheck.py 1.2.1
-    python build_aircheck.py  # Uses current version
+    python build_aircheck.py 1.2.1 --dual      # Build both GUI and CLI (recommended)
+    python build_aircheck.py 1.2.1 --gui-only  # Build only GUI version
+    python build_aircheck.py 1.2.1 --cli-only  # Build only CLI version  
+    python build_aircheck.py --dual             # Uses current version, build both
 """
 
 import sys
