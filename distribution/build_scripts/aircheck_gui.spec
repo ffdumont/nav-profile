@@ -7,12 +7,9 @@ a = Analysis(
     binaries=[],
     datas=[
         ('../../config.ini', '.'),  # Add config.ini to GUI build
-        ('../../data/input/AIXM4.5_all_FR_OM_2025-10-02.xml', 'data/input/'),
-        ('../../data/output/', 'data/output/'),
-        ('../../data/samples/20250926_165229_LFXU-LFFY.kml', 'data/samples/'),
-        ('../../data/airspaces.db', 'data/'),
         ('../../navpro/profile-correction/', 'profile-correction/'), 
-        ('../../navpro/', 'navpro/')
+        ('../../navpro/', 'navpro/'),
+        # Data files will be handled by build script for better control
     ],
     hiddenimports=[
         'navpro',

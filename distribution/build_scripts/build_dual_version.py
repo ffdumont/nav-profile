@@ -109,11 +109,70 @@ def build_both_versions():
         print("❌ CLI executable not found!")
         return False
     
-    # Copy data directory from GUI build (it should have all data files)
+    # Copy data directory - handle from source if not in GUI build
     gui_data = dist_dir / "gui" / "data"
+    source_data = project_root / "data"
+    
     if gui_data.exists():
         shutil.copytree(gui_data, combined_dist / "data")
-        print("✅ Copied data directory")
+        print("✅ Copied data directory from GUI build")
+    elif source_data.exists():
+        # Copy essential data files from source if GUI build doesn't have them
+        dest_data = combined_dist / "data"
+        dest_data.mkdir(parents=True, exist_ok=True)
+        
+        # Copy database if it exists
+        db_file = source_data / "airspaces.db"
+        if db_file.exists():
+            shutil.copy2(db_file, dest_data / "airspaces.db")
+            print("✅ Copied airspaces.db from source")
+        
+        # Copy input directory
+        input_dir = source_data / "input"
+        if input_dir.exists():
+            shutil.copytree(input_dir, dest_data / "input", dirs_exist_ok=True)
+            print("✅ Copied input directory from source")
+        
+        # Copy samples directory
+        samples_dir = source_data / "samples"
+        if samples_dir.exists():
+            shutil.copytree(samples_dir, dest_data / "samples", dirs_exist_ok=True)
+            print("✅ Copied samples directory from source")
+        
+        # Create output directory
+        output_dir = dest_data / "output"
+        output_dir.mkdir(exist_ok=True)
+        print("✅ Created output directory")
+        
+        # Create logs directory
+        logs_dir = dest_data / "logs"
+        logs_dir.mkdir(exist_ok=True)
+        print("✅ Created logs directory")
+        
+        # Create temp directory
+        temp_dir = dest_data / "temp"
+        temp_dir.mkdir(exist_ok=True)
+        print("✅ Created temp directory")
+        
+        print("✅ Built complete data directory from source")
+    else:
+        print("⚠️ No data directory found - creating minimal structure")
+        dest_data = combined_dist / "data"
+        dest_data.mkdir(parents=True, exist_ok=True)
+        (dest_data / "input").mkdir(exist_ok=True)
+        (dest_data / "output").mkdir(exist_ok=True)
+        (dest_data / "samples").mkdir(exist_ok=True)
+        (dest_data / "logs").mkdir(exist_ok=True)
+        (dest_data / "temp").mkdir(exist_ok=True)
+        
+        # Create placeholder files
+        (dest_data / "input" / "Place_AIXM_files_here.txt").write_text(
+            "Place your AIXM XML files in this directory for airspace analysis.\n"
+        )
+        (dest_data / "samples" / "Place_KML_files_here.txt").write_text(
+            "Place your KML flight profile files in this directory for testing.\n"
+        )
+        print("✅ Created minimal data directory structure")
     
     # Create launcher scripts
     create_launcher_scripts(combined_dist)

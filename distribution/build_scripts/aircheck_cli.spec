@@ -19,10 +19,7 @@ data_files = [
     (str(navpro_path / "__init__.py"), "navpro"),
     (str(navpro_path / "version.py"), "navpro"),
     
-    # Data files (if they exist)
-    (str(project_root / "data" / "airspaces.db"), "data"),
-    (str(project_root / "data" / "input" / "*.xml"), "data/input"),
-    (str(project_root / "data" / "samples" / "*.kml"), "data/samples"),
+    # Data files will be handled by build script for better control
 ]
 
 # Hidden imports for modules that might not be detected
