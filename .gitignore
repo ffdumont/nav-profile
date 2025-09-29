@@ -108,6 +108,7 @@ test_*.py
 # PyInstaller build output (but keep distribution/ formal releases)
 build/
 dist/
+AirCheck_Distribution/
 
 # Duplicate release directories in root
 AirCheck_v*/
