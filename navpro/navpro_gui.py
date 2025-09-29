@@ -21,9 +21,8 @@ from typing import Dict, Any, TYPE_CHECKING
 # Add the project directory to Python path
 sys.path.append(str(Path(__file__).parent))
 
-# Import configuration and splash screen
+# Import configuration
 from config_manager import config
-from splash_screen import show_splash_with_config
 
 # Import our core functionality
 from core.flight_analyzer import FlightProfileAnalyzer
@@ -423,6 +422,31 @@ class AirspaceCheckerGUI:
         )
         if filename:
             self.kml_file.set(filename)
+            # Clear any previously corrected file when a new KML is selected
+            self.corrected_kml_file = ""
+            # Check if a corrected version already exists for this KML file
+            self._check_for_existing_corrected_file()
+    
+    def _check_for_existing_corrected_file(self):
+        """Check if a corrected version of the current KML file already exists"""
+        if not self.kml_file.get():
+            return
+            
+        try:
+            kml_path = Path(self.kml_file.get())
+            output_dir = Path(self.output_dir.get())
+            
+            # Generate the expected corrected file path
+            expected_corrected_file = output_dir / f"{kml_path.stem}_corrected.kml"
+            
+            # If the corrected file exists, set it
+            if expected_corrected_file.exists():
+                self.corrected_kml_file = str(expected_corrected_file)
+                self.log_info(f"Found existing corrected profile: {expected_corrected_file.name}")
+            
+        except Exception as e:
+            # If there's any error, just continue without setting corrected file
+            pass
     
     def browse_output(self):
         """Browse for output directory"""
@@ -969,10 +993,8 @@ class AirspaceCheckerGUI:
                         import traceback
                         self.log_output(traceback.format_exc(), "error")
                 
-                # Run viewer in a separate thread to avoid blocking the GUI
-                import threading
-                viewer_thread = threading.Thread(target=run_viewer, daemon=True)
-                viewer_thread.start()
+                # Schedule the viewer to run in the main thread to avoid Tkinter threading issues
+                self.root.after(100, run_viewer)
                 
             except ImportError as e:
                 self.log_error(f"❌ Cannot import profile viewer: {e}")
@@ -1472,28 +1494,125 @@ class AirspaceCheckerGUI:
 def main():
     """Main function to run the GUI application"""
     
-    # Show splash screen during startup
-    from splash_screen import show_splash_with_config
-    from config_manager import ConfigManager
-    
     # Initialize config for splash screen
+    from config_manager import ConfigManager
     config = ConfigManager()
     
-    # Show splash screen with startup tasks
-    startup_tasks = [
-        {"name": "Loading configuration..."},
-        {"name": "Initializing database..."}, 
-        {"name": "Loading AIXM data..."},
-        {"name": "Preparing interface..."}
-    ]
-    
-    try:
-        show_splash_with_config(config, startup_tasks)
-    except Exception as e:
-        print(f"Splash screen error (non-critical): {e}")
-    
-    # Continue with normal GUI initialization
+    # Create single root window
     root = tk.Tk()
+    root.withdraw()  # Hide main window initially
+    
+    # Show AirCheck-style splash screen with startup tasks
+    splash_window = None
+    update_splash = None
+    
+    if config.get_bool('APPLICATION', 'enable_splash', True):
+        try:
+            # Use Toplevel window for splash (better PyInstaller compatibility)
+            splash_window = tk.Toplevel(root)
+            splash_window.title("AirCheck")
+            splash_window.resizable(False, False)
+            splash_window.overrideredirect(True)  # Remove window decorations
+            splash_window.attributes('-topmost', True)  # Keep on top
+            
+            # Set background color
+            splash_window.configure(bg='white')
+            
+            # Center splash screen
+            width, height = 450, 200  # AirCheck size
+            splash_window.update_idletasks()  # Ensure window is created
+            screen_width = splash_window.winfo_screenwidth()
+            screen_height = splash_window.winfo_screenheight()
+            x = (screen_width - width) // 2
+            y = (screen_height - height) // 2
+            splash_window.geometry(f"{width}x{height}+{x}+{y}")
+            
+            # Main splash frame with border
+            main_frame = tk.Frame(splash_window, bg='white', bd=3, relief='ridge')
+            main_frame.pack(fill='both', expand=True, padx=3, pady=3)
+            
+            # Title with larger font and color
+            title_label = tk.Label(main_frame, text="AirCheck", 
+                                 font=('Arial', 18, 'bold'), 
+                                 bg='white', fg='#2C3E50',
+                                 pady=15)
+            title_label.pack()
+            
+            # Version with contrasting colors
+            version = config.get_value('APPLICATION', 'version', '1.2.4')
+            version_label = tk.Label(main_frame, text=f"Version {version}", 
+                                   font=('Arial', 11, 'normal'), 
+                                   bg='white', fg='#E74C3C')
+            version_label.pack(pady=5)
+            
+            # Status message
+            status_var = tk.StringVar(value="Initializing application...")
+            status_label = tk.Label(main_frame, textvariable=status_var, 
+                                  font=('Arial', 10), 
+                                  bg='white', fg='#34495E')
+            status_label.pack(pady=10)
+            
+            # Progress message
+            log_label = tk.Label(main_frame, text="• Starting AirCheck application...", 
+                               font=('Arial', 9), 
+                               bg='white', fg='#3498DB', 
+                               justify='left', anchor='w')
+            log_label.pack(pady=(5, 15), padx=20, fill='x')
+            
+            # Progress bar
+            progress_var = tk.DoubleVar(value=10)
+            progress_bar = ttk.Progressbar(main_frame, variable=progress_var, 
+                                         maximum=100, length=350, 
+                                         style='TProgressbar')
+            progress_bar.pack(pady=10)
+            
+            # Force immediate display
+            splash_window.update_idletasks()
+            splash_window.update()
+            splash_window.lift()
+            splash_window.focus_force()
+            
+            # Ensure all widgets are visible
+            main_frame.update_idletasks()
+            title_label.update_idletasks()
+            version_label.update_idletasks()
+            status_label.update_idletasks()
+            log_label.update_idletasks()
+            progress_bar.update_idletasks()
+            
+            def update_splash(progress, status, log_message=None):
+                if splash_window and splash_window.winfo_exists():
+                    try:
+                        progress_var.set(progress)
+                        status_var.set(status)
+                        if log_message:
+                            log_label.config(text=log_message)
+                        # Force update of all components
+                        splash_window.update_idletasks()
+                        splash_window.update()
+                        main_frame.update_idletasks()
+                    except Exception:
+                        pass
+            
+            # Show initial progress with forced update
+            update_splash(15, "Loading configuration...", "• Reading application settings...")
+            
+        except Exception as e:
+            print(f"Failed to create splash screen: {e}")
+            splash_window = None
+            update_splash = lambda p, s, l=None: None
+    else:
+        update_splash = lambda p, s, l=None: None
+    
+    # Initialize the main application with progress updates
+    if splash_window:
+        update_splash(30, "Loading configuration...", "• Reading config.ini and database settings")
+        import time
+        time.sleep(0.3)  # Brief pause to show progress
+    
+    if splash_window:
+        update_splash(70, "Starting AirCheck GUI...", "• Initializing interface and loading AIXM data")
+        time.sleep(0.3)  # Brief pause to show progress
     
     # Configure ttk styles
     style = ttk.Style()
@@ -1506,6 +1625,18 @@ def main():
     
     app = AirspaceCheckerGUI(root)
     
+    if splash_window:
+        update_splash(100, "Ready!", "• Application startup complete - launching GUI")
+        time.sleep(0.8)  # Brief pause to show "Ready!"
+        try:
+            splash_window.destroy()
+        except:
+            pass
+    
+    # Show main window
+    root.deiconify()
+    
+    # Start the application
     try:
         root.mainloop()
     except KeyboardInterrupt:
