@@ -18,9 +18,9 @@ if %ERRORLEVEL% EQU 0 (
 ) else (
     REM Add to user PATH
     if defined USER_PATH (
-        reg add HKCU\Environment /v PATH /t REG_EXPAND_SZ /d "%USER_PATH%;%NAVPRO_DIR%" /f
+        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%USER_PATH%;%NAVPRO_DIR%" /f
     ) else (
-        reg add HKCU\Environment /v PATH /t REG_EXPAND_SZ /d "%NAVPRO_DIR%" /f
+        reg add "HKCU\Environment" /v PATH /t REG_EXPAND_SZ /d "%NAVPRO_DIR%" /f
     )
     echo NavPro added to permanent user PATH
     echo Please restart your terminal or run: refreshenv

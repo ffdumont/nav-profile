@@ -1,13 +1,32 @@
-# 🛩️ Airspace Checker - Professional Flight Profile & Airspace Analysis Suite
+# 🛩️ Airspace Checker - Flight Navigation & Airspace Analysis Tool
 
 ⚠️ **IMPORTANT AVIATION SAFETY DISCLAIMER** ⚠️
 > **FOR EDUCATIONAL AND FLIGHT PLANNING PURPOSES ONLY**
 > 
 > This software is NOT certified for use in actual flight operations. All information must be verified with official aeronautical publications and current NOTAMs before flight. The developers assume no responsibility for navigation decisions made using this software. Always comply with applicable aviation regulations and maintain proper flight planning procedures.
 
-A comprehensive suite of aviation navigation tools for analyzing KML flight paths against French airspace data, with flight profile correction capabilities and professional Windows desktop application.
+## About AirCheck
 
-Suite complète d'outils de navigation aéronautique pour l'analyse de fichiers KML de vol contre les données d'espace aérien français, avec correction de profil de vol et application Windows professionnelle.
+AirCheck is a flight planning tool that helps identify airspaces along your navigation route. During flight preparation, identifying crossed airspaces is mandatory but often time-consuming. Manual analysis on IGN/OACI charts at various scales takes time and can lead to oversights.
+
+### What AirCheck Does
+
+The software analyzes your navigation route prepared in SDVFR (KML file) and automatically identifies:
+- Airspaces actually crossed by your trajectory
+- Airspaces located near your route  
+- Detailed information for each airspace (altitude, type, class, etc.)
+
+Data used comes from official SIA (Service de l'Information Aéronautique) sources.
+
+**Important**: It is the user's responsibility to ensure that the AIRAC AIXM data used is current and corresponds to the AIRAC cycle in effect for the planned flight.
+
+### Key Features
+
+- **Quick Analysis**: Route analysis completed in seconds
+- **Two Output Types**: Detailed report listing crossed/surrounding airspaces, plus Google Earth visualization with route and colored airspace volumes
+- **3D Visualization**: In Google Earth, airspaces are represented as 3D volumes with their respective altitudes - clearer than traditional 2D maps where different airspaces can appear confusingly overlapped
+- **Clear Distinction**: Tool clearly distinguishes actually crossed airspaces from those nearby, allowing you to prioritize important information
+
 
 ## 🚀 Quick Start
 
@@ -41,14 +60,11 @@ nav-profile/
 │   │   ├── core/                       # Flight analysis engine
 │   │   ├── data_processing/            # AIXM data processing
 │   │   ├── utils/                      # General utilities
-│   │   └── visualization/              # KML generation
-│
-├── ✈️ Profile Correction Tools
-│   ├── navpro/
-│   │   ├── profile-correction/
-│   │   ├── kml_profile_corrector.py    # Universal profile corrector
-│   │   ├── kml_profile_viewer.py       # Flight profile visualizer
-│   │   └── aviation_utils.py           # Aviation utilities & APIs
+│   │   ├── visualization/              # KML generation
+│   │   └── profile-correction/         # Profile correction tools
+│   │       ├── kml_profile_corrector.py    # Universal profile corrector
+│   │       ├── kml_profile_viewer.py       # Flight profile visualizer
+│   │       └── aviation_utils.py           # Aviation utilities & APIs
 │
 ├── 📋 Launch Scripts
 │   ├── scripts/
@@ -77,7 +93,7 @@ nav-profile/
 ## 🎯 Key Features
 
 ### 🛩️ Airspace Checker Analysis
-- **Professional Windows GUI**: Clean, intuitive desktop application
+- **Windows GUI**: Clean, intuitive desktop application
 - **Enhanced Airspace Organization**: 📁 **NEW v1.2.5** - Separate "Crossed Airspaces" and "Surrounding Airspaces" folders in Google Earth
 - **Critical Airspace Detection**: Automatic highlighting of Class A, Prohibited (P), and Restricted (R) zones  
 - **Smart Corridor Analysis**: Distinguishes between directly crossed airspaces and surrounding corridor airspaces
@@ -226,7 +242,7 @@ CLASS A AIRSPACE - IFR clearance required:
 ## 🏆 Recent Improvements
 
 ### v1.0+ Features
-- ✅ **Complete Windows GUI**: Professional desktop application with file dialogs
+- ✅ **Complete Windows GUI**: Desktop application with file dialogs
 - ✅ **Universal Profile Corrector**: Works with any standard navigation KML
 - ✅ **Smart Final Approach**: Realistic descent profiles with proper timing
 - ✅ **Aviation-Standard Naming**: Clear, descriptive waypoint names
@@ -281,9 +297,9 @@ python navpro/profile-correction/kml_profile_corrector.py --help
 
 ---
 
-**NavPro** - Professional aviation navigation analysis for safe flight planning 🛩️
+**NavPro** - Aviation navigation analysis for safe flight planning 🛩️
 
-*Suite complète pour l'analyse professionnelle de navigation aéronautique et la planification sécurisée des vols*
+*Ensemble d'outils pour l'analyse de navigation aéronautique et la planification sécurisée des vols*
 
 ## � Project Structure
 
@@ -403,7 +419,7 @@ RESTRICTED (2): LFR149B, LFR35A...
 
 - **`fixed_airspace_query.py`**: 3-stage spatial query engine with STRtree indexing
 - **`flight_profile.py`**: Flight path analysis with corridor generation  
-- **`navpro.py`**: Professional CLI interface with subcommands
+- **`navpro.py`**: CLI interface with subcommands
 - **`production/aixm_query_service.py`**: AIXM XML data extraction and database management
 
 ### 3-Stage Query Process
@@ -564,7 +580,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - ✅ **Rich Data Model** - Altitudes, operating hours, geometry, operational remarks
 - ✅ **Multiple Interfaces** - Python API, command-line search, and NavPro tool
 - ✅ **Multiple Output Formats** - Detailed and summary views, plus KML export
-- ✅ **Production Ready** - Comprehensive documentation and validation
+- ✅ **Ready to Use** - Complete documentation and validation
 
 ## Quick Start
 
@@ -620,7 +636,7 @@ python navpro.py --name "CHEVREUSE"
 │   ├── airspaces.db              # SQLite database (extracted data)
 │   └── AIXM4.5_all_FR_OM_2025-10-02.xml  # Source AIXM XML file
 ├── .gitignore              # Git ignore patterns
-└── README.md               # This comprehensive documentation
+└── README.md               # This documentation
 ```
 
 ## First Time Setup
@@ -744,15 +760,15 @@ python search_tool.py -c Paris
 
 ## NavPro - Command Line Tool
 
-**NavPro** is the comprehensive command-line interface for the nav-profile application, providing professional navigation services with a consistent subcommand structure.
+**NavPro** is the command-line interface for the nav-profile application, providing navigation services with a consistent subcommand structure.
 
 ### 🛩️ Features
 
-- **Professional CLI**: Consistent subcommand structure (`navpro list`, `navpro generate`, `navpro stats`)
+- **CLI Interface**: Consistent subcommand structure (`navpro list`, `navpro generate`, `navpro stats`)
 - **Airspace Search**: Find airspaces by name, ID, type, or list all with flexible filters
 - **3D KML Generation**: Create Google Earth-compatible 3D airspace volumes with altitude extrusion
 - **Batch Operations**: Process multiple airspaces individually or as combined files  
-- **Database Statistics**: Comprehensive analysis of airspace coverage and geometry
+- **Database Statistics**: Analysis of airspace coverage and geometry
 - **Cross-Platform**: Python script with PowerShell wrapper for Windows users
 
 ### 🚀 Usage
@@ -853,7 +869,7 @@ Airspace Types:
 
 🌍 KML Generation Capability:
   Ready for KML: 3549 airspaces
-  3D volumes available for professional visualization
+  3D volumes available for visualization
 ```
 
 ### 🌍 3D KML Output
@@ -974,7 +990,7 @@ Validates database structure and content integrity.
 ```bash
 python validate_system.py
 ```
-Comprehensive system validation including extraction and query capabilities.
+System validation including extraction and query capabilities.
 
 ### Get Database Statistics
 ```python
@@ -1013,7 +1029,7 @@ The system has successfully processed:
 - SQLite database optimized for read operations
 - Indexed searches on `code_id` and `name` fields
 - Efficient geometry storage for boundary data
-- Comprehensive validation of XML input
+- Validation of XML input
 - Graceful handling of missing data fields
 
 ## Troubleshooting
@@ -1079,9 +1095,9 @@ Each airspace record contains:
 🌍 **3D KML Volumes** - Google Earth-compatible airspace visualization  
 🗓️ **Data Current as of October 2, 2025** - Latest AIXM data  
 🔍 **Full Search Capabilities Active** - Keyword and code search  
-🛩️ **NavPro Command-Line Tool** - Professional airspace services  
+🛩️ **NavPro Command-Line Tool** - Airspace services  
 ⚡ **High Performance** - Sub-second query responses  
-📚 **Comprehensive Documentation** - Complete usage guide  
+📚 **Complete Documentation** - Complete usage guide  
 
 ## � Release Notes / Notes de Version
 
