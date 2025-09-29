@@ -29,7 +29,7 @@ class FlightProfileAnalyzer:
         
         self.engine = FixedAirspaceQueryEngine(db_path)
         
-    def get_chronological_crossings(self, kml_path: str, sample_distance_km: float = 5.0) -> List[Dict]:
+    def get_chronological_crossings(self, kml_path: str, sample_distance_km: float = 1.0) -> List[Dict]:
         """Get airspaces crossed chronologically along flight path with proper crossing detection"""
         # Parse flight path
         waypoints = KMLFlightPathParser.parse_kml_coordinates(kml_path)
@@ -112,7 +112,7 @@ class FlightProfileAnalyzer:
         
         return crossings
         
-    def analyze_kml_flight(self, kml_path: str, sample_distance_km: float = 5.0) -> Dict:
+    def analyze_kml_flight(self, kml_path: str, sample_distance_km: float = 1.0) -> Dict:
         """Analyze a KML flight path for airspace crossings"""
         
         # Parse flight path

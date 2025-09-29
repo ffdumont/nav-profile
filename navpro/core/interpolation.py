@@ -7,7 +7,7 @@ from typing import List, Tuple
 from core.spatial_query import AirspaceQueryEngine, KMLFlightPathParser
 
 def interpolate_flight_path(coordinates: List[Tuple[float, float, float]], 
-                          segment_distance_km: float = 5.0) -> List[Tuple[float, float, float]]:
+                          segment_distance_km: float = 1.0) -> List[Tuple[float, float, float]]:
     """
     Interpolate points along flight path segments with smart altitude constraint handling
     

@@ -270,10 +270,17 @@ class AirspaceCheckerGUI:
         # Configure text tags for colored output
         self.setup_output_colors()
         
+        # Progress bar (initially hidden)
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(main_frame, variable=self.progress_var, 
+                                          maximum=100, mode='determinate')
+        self.progress_bar.grid(row=9, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=2)
+        self.progress_bar.grid_remove()  # Initially hidden
+        
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
-        status_bar.grid(row=9, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=2)
+        status_bar.grid(row=10, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=2)
         
     def setup_output_colors(self):
         """Configure text tags for colored output"""
@@ -297,6 +304,24 @@ class AirspaceCheckerGUI:
         
         # Airspace names - dark green
         self.output_text.tag_configure("airspace", foreground="darkgreen", font=('Consolas', 10, 'bold'))
+    
+    def show_progress_bar(self):
+        """Show and reset the progress bar"""
+        self.progress_var.set(0)
+        self.progress_bar.grid()
+        self.root.update_idletasks()
+    
+    def hide_progress_bar(self):
+        """Hide the progress bar"""
+        self.progress_bar.grid_remove()
+        self.root.update_idletasks()
+    
+    def update_progress(self, value, status_text=None):
+        """Update progress bar value and optional status text"""
+        self.progress_var.set(value)
+        if status_text:
+            self.status_var.set(status_text)
+        self.root.update_idletasks()
         
         # File names - dark gray
         self.output_text.tag_configure("filename", foreground="gray", font=('Consolas', 10, 'italic'))
@@ -825,6 +850,10 @@ class AirspaceCheckerGUI:
     def _run_profile_correction(self):
         """Run the actual profile correction"""
         try:
+            # Show progress bar
+            self.show_progress_bar()
+            self.update_progress(10, "Initializing profile correction...")
+            
             # Import KMLProfileCorrector - handle both dev and packaged environments
             try:
                 # Try adding profile-correction directory to path (for development)
@@ -854,6 +883,7 @@ class AirspaceCheckerGUI:
             self.log_info(f"   Ground speed: {self.ground_speed.get()} kts")
             self.log_output("")
             
+            self.update_progress(30, "Initializing corrector...")
             # Initialize corrector
             corrector = KMLProfileCorrector(
                 climb_rate_fpm=self.climb_rate.get(),
@@ -866,10 +896,12 @@ class AirspaceCheckerGUI:
             output_dir = Path(self.output_dir.get())
             self.corrected_kml_file = str(output_dir / f"{kml_path.stem}_corrected.kml")
             
+            self.update_progress(60, "Correcting profile...")
             # Correct the profile
             success = corrector.correct_kml_file(self.kml_file.get(), self.corrected_kml_file)
             
             if success:
+                self.update_progress(90, "Finalizing correction...")
                 self.log_success(f"✅ Profile correction completed successfully!")
                 self.log_output(f"   Corrected file: {os.path.basename(self.corrected_kml_file)}", "filename")
                 self.log_output("")
@@ -885,6 +917,7 @@ class AirspaceCheckerGUI:
                     if os.path.exists(airspace_file):
                         self.log_success(f"✅ Airspace analysis saved: {os.path.basename(airspace_file)}")
                     
+                self.update_progress(100, "Profile correction complete!")
                 self.log_success("🎯 Profile correction workflow complete!")
             else:
                 self.log_error("❌ Profile correction failed")
@@ -895,7 +928,8 @@ class AirspaceCheckerGUI:
             self.log_output(traceback.format_exc(), "error")
         
         finally:
-            self.root.after(0, self._analysis_complete)
+            # Hide progress bar and re-enable buttons
+            self.root.after(0, lambda: (self.hide_progress_bar(), self._analysis_complete()))
     
     def view_profile(self):
         """Smart view profile - auto-corrects if enabled, then shows appropriate profile"""
@@ -1086,6 +1120,10 @@ class AirspaceCheckerGUI:
     def _run_list_analysis(self):
         """Run the actual airspace listing analysis"""
         try:
+            # Show progress bar
+            self.show_progress_bar()
+            self.update_progress(10, "Initializing analysis...")
+            
             analysis_file = getattr(self, 'analysis_file', self.kml_file.get())
             file_type = "corrected" if analysis_file != self.kml_file.get() else "original"
             
@@ -1093,6 +1131,8 @@ class AirspaceCheckerGUI:
             airac_info = self.get_airac_info()
             self.log_output(f"📅 {airac_info}")
             self.log_output("")
+            
+            self.update_progress(20, "Validating files...")
             
             self.log_output(f"🛩️ Analyzing {file_type} flight path: {os.path.basename(analysis_file)}")
             self.log_output(f"   Corridor: ±{self.corridor_height.get()} ft, ±{self.corridor_width.get()} NM")
@@ -1106,8 +1146,10 @@ class AirspaceCheckerGUI:
                 self.log_output("❌ Error: Airspace database not found.")
                 self.log_output(f"   Expected location: {db_path}")
                 self.log_output("   Please ensure airspaces.db is available.")
+                self.hide_progress_bar()
                 return
             
+            self.update_progress(30, "Initializing analyzer...")
             analyzer = FlightProfileAnalyzer(
                 db_path, 
                 self.corridor_height.get(), 
@@ -1115,13 +1157,18 @@ class AirspaceCheckerGUI:
             )
             
             # Get chronological crossings
+            self.update_progress(40, "Building spatial index...")
             self.log_output("Building spatial index...")
-            crossings = analyzer.get_chronological_crossings(analysis_file, sample_distance_km=5.0)
+            
+            self.update_progress(60, "Analyzing flight path...")
+            crossings = analyzer.get_chronological_crossings(analysis_file, sample_distance_km=1.0)
             
             if not crossings:
                 self.log_output("❌ No airspace crossings found")
+                self.hide_progress_bar()
                 return
             
+            self.update_progress(80, "Processing results...")
             # Separate actual crossings from corridor-only discoveries
             actual_crossings = [c for c in crossings if c.get('is_actual_crossing', True)]
             corridor_only = [c for c in crossings if not c.get('is_actual_crossing', True)]
@@ -1209,6 +1256,7 @@ class AirspaceCheckerGUI:
                 self.log_output("Review flight plan carefully - these zones require special attention!")
             
             self.log_output(f"🏁 Analysis complete - {len(all_filtered)} relevant airspaces found along flight path")
+            self.update_progress(100, "Analysis complete!")
             
         except Exception as e:
             self.log_output(f"❌ Error during analysis: {str(e)}")
@@ -1216,8 +1264,8 @@ class AirspaceCheckerGUI:
             self.log_output(traceback.format_exc())
         
         finally:
-            # Re-enable buttons
-            self.root.after(0, self._analysis_complete)
+            # Hide progress bar and re-enable buttons
+            self.root.after(0, lambda: (self.hide_progress_bar(), self._analysis_complete()))
     
     def _run_profile_correction_for_kml(self):
         """Run profile correction specifically for KML generation (without full UI updates)"""
@@ -1306,17 +1354,23 @@ class AirspaceCheckerGUI:
     def _run_kml_generation(self):
         """Run the actual KML generation"""
         try:
+            # Show progress bar
+            self.show_progress_bar()
+            self.update_progress(10, "Initializing KML generation...")
+            
             # If correction is enabled but no corrected file exists, generate it first
             if self.enable_correction.get() and (not self.corrected_kml_file or not os.path.exists(self.corrected_kml_file)):
                 self.log_info("🔧 Correction enabled but no corrected profile found - generating corrected profile first...")
                 self.log_output("")
                 
+                self.update_progress(20, "Running profile correction...")
                 # Run profile correction first
                 self._run_profile_correction_for_kml()
                 
                 # Check if correction was successful
                 if not self.corrected_kml_file or not os.path.exists(self.corrected_kml_file):
                     self.log_error("❌ Failed to generate corrected profile - cannot proceed with KML generation")
+                    self.hide_progress_bar()
                     return
                 
                 self.log_output("")
@@ -1331,6 +1385,7 @@ class AirspaceCheckerGUI:
                 analysis_file = self.kml_file.get()
                 file_type = "original"
             
+            self.update_progress(30, "Preparing analysis...")
             # Display AIRAC information
             airac_info = self.get_airac_info()
             self.log_info(f"📅 {airac_info}")
@@ -1351,15 +1406,21 @@ class AirspaceCheckerGUI:
                 self.log_error("❌ Error: Airspace database not found.")
                 self.log_info(f"   Expected location: {db_path}")
                 self.log_info("   Please ensure airspaces.db is available.")
+                self.hide_progress_bar()
                 return
                 
+            self.update_progress(40, "Initializing analyzer...")
             analyzer = FlightProfileAnalyzer(db_path, self.corridor_height.get(), self.corridor_width.get())
             
+            self.update_progress(50, "Building spatial index...")
             self.log_processing("Building spatial index...")
-            crossings = analyzer.get_chronological_crossings(analysis_file, sample_distance_km=5.0)
+            
+            self.update_progress(70, "Analyzing flight path...")
+            crossings = analyzer.get_chronological_crossings(analysis_file, sample_distance_km=1.0)
             
             if not crossings:
                 self.log_error("❌ No airspace crossings found - no KML files to generate")
+                self.hide_progress_bar()
                 return
             
             # Separate actual crossings from corridor discoveries for analysis
@@ -1417,6 +1478,7 @@ class AirspaceCheckerGUI:
             flight_coordinates = KMLFlightPathParser.parse_kml_coordinates(analysis_file)
             flight_waypoints = KMLFlightPathParser.parse_kml_waypoints_with_names(analysis_file)
             
+            self.update_progress(80, "Generating KML content...")
             # Generate organized KML
             self.log_output(f"   >> Creating organized profile KML: {output_file.name}")
             self.log_output(f"      >> Organizing airspaces into 'Crossed' and 'Surrounding' folders")
@@ -1436,6 +1498,7 @@ class AirspaceCheckerGUI:
             
             self.log_output(f"      >> Organized profile KML saved: {output_file}")
             self.log_output("")
+            self.update_progress(90, "Launching Google Earth...")
             self.log_output("=" * 60)
             self.log_output(f"🎉 KML generation complete!")
             self.log_output(f"   Profile: 1 organized KML file with {len(unique_ids)} airspaces")
@@ -1446,6 +1509,7 @@ class AirspaceCheckerGUI:
             self.log_output("")
             self.log_output("🌍 Launching Google Earth Pro...")
             self._launch_google_earth(str(output_file))
+            self.update_progress(100, "KML generation complete!")
             
         except Exception as e:
             self.log_output(f"❌ Error during KML generation: {str(e)}")
@@ -1453,7 +1517,8 @@ class AirspaceCheckerGUI:
             self.log_output(traceback.format_exc())
         
         finally:
-            self.root.after(0, self._analysis_complete)
+            # Hide progress bar and re-enable buttons
+            self.root.after(0, lambda: (self.hide_progress_bar(), self._analysis_complete()))
     
     def _launch_google_earth(self, kml_file):
         """Launch Google Earth Pro with the generated KML file"""

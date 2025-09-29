@@ -486,7 +486,7 @@ def cmd_list_profile(args):
         )
         
         # Get chronological crossings
-        crossings = analyzer.get_chronological_crossings(kml_file, sample_distance_km=5.0)
+        crossings = analyzer.get_chronological_crossings(kml_file, sample_distance_km=1.0)
         
         if not crossings:
             print("❌ No airspace crossings found")
@@ -815,7 +815,7 @@ def cmd_generate_profile(args):
         )
         
         # Get chronological crossings
-        crossings = analyzer.get_chronological_crossings(kml_file, sample_distance_km=5.0)
+        crossings = analyzer.get_chronological_crossings(kml_file, sample_distance_km=1.0)
         
         if not crossings:
             print("❌ No airspace crossings found - no KML files to generate")
