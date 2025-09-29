@@ -128,6 +128,15 @@ def build_both_versions():
         if file.is_file():
             print(f"   • {file.relative_to(combined_dist)}")
     
+    # Clean up temporary build directories
+    print(f"\n🧹 Cleaning up temporary build files...")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+        print("✅ Removed temporary build directory")
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+        print("✅ Removed temporary dist directory")
+    
     return True
 
 def create_launcher_scripts(dist_dir):
