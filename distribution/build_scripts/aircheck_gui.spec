@@ -2,10 +2,11 @@
 
 
 a = Analysis(
-    ['../../navpro/navpro_gui.py'],
+    ['../../aircheck.py'],  # Use aircheck.py as GUI entry point
     pathex=['../../navpro', '../../'],
     binaries=[],
     datas=[
+        ('../../config.ini', '.'),  # Add config.ini to GUI build
         ('../../data/input/AIXM4.5_all_FR_OM_2025-10-02.xml', 'data/input/'),
         ('../../data/output/', 'data/output/'),
         ('../../data/samples/20250926_165229_LFXU-LFFY.kml', 'data/samples/'),
